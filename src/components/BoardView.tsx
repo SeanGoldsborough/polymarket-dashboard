@@ -29,18 +29,21 @@ export default function BoardView({
   const [dragId, setDragId] = useState<number | null>(null);
   const [overCol, setOverCol] = useState<string | null>(null);
 
-  // Build columns. Only show the "(none)" column for non-status groupings.
-  const baseCols = COLUMNS[groupBy];
-  const hasNone = groupBy !== "status" && issues.some((i) => !i[groupBy]);
-  const columns = hasNone ? [...baseCols, NONE] : baseCols;
-
+  // Group issues, then build the column list so that NO issue is ever hidden:
+  // start from the predefined options, append any off-list values present in
+  // the data (e.g. a status imported from Notion that isn't in our enum), and
+  // finally the "(none)" bucket for empty non-status fields.
   const grouped: Record<string, Issue[]> = {};
-  for (const col of columns) grouped[col] = [];
   for (const i of issues) {
     const key = (i[groupBy] as string | null) || (groupBy === "status" ? "Backlog" : NONE);
-    if (!grouped[key]) grouped[key] = [];
-    grouped[key].push(i);
+    (grouped[key] ??= []).push(i);
   }
+
+  const baseCols = COLUMNS[groupBy];
+  const extraCols = Object.keys(grouped).filter((k) => k !== NONE && !baseCols.includes(k));
+  const hasNone = grouped[NONE]?.length > 0;
+  const columns = [...baseCols, ...extraCols, ...(hasNone ? [NONE] : [])];
+  for (const col of columns) grouped[col] ??= [];
 
   function drop(col: string) {
     if (dragId == null) return;
@@ -99,8 +102,11 @@ export default function BoardView({
                       </span>
                     )}
                   </div>
-                  {i.assignee && (
-                    <div className="mt-2 text-xs text-muted">@{i.assignee}</div>
+                  {(i.assignee || (i._count?.comments ?? 0) > 0) && (
+                    <div className="mt-2 flex items-center gap-2 text-xs text-muted">
+                      {i.assignee && <span>@{i.assignee}</span>}
+                      {(i._count?.comments ?? 0) > 0 && <span>💬 {i._count!.comments}</span>}
+                    </div>
                   )}
                 </article>
               ))}

@@ -15,12 +15,16 @@ export async function GET() {
 
 // POST /api/issues — create a new issue.
 export async function POST(req: NextRequest) {
+  let data;
   try {
-    const body = await req.json();
-    const data = sanitizeIssue(body, { partial: false });
-    const issue = await prisma.issue.create({ data: data as any });
-    return NextResponse.json(issue, { status: 201 });
+    data = sanitizeIssue(await req.json(), { partial: false });
   } catch (e: any) {
     return NextResponse.json({ error: e.message ?? "Bad request" }, { status: 400 });
+  }
+  try {
+    const issue = await prisma.issue.create({ data });
+    return NextResponse.json(issue, { status: 201 });
+  } catch {
+    return NextResponse.json({ error: "Could not create issue" }, { status: 500 });
   }
 }

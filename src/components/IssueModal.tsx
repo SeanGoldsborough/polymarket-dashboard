@@ -104,12 +104,14 @@ export default function IssueModal({
 }: {
   issue: Issue | null;
   onClose: () => void;
-  onSave: (data: Partial<Issue>) => void;
-  onDelete?: () => void;
+  onSave: (data: Partial<Issue>) => Promise<{ ok: boolean; error?: string }>;
+  onDelete?: () => Promise<{ ok: boolean; error?: string }>;
 }) {
   const [form, setForm] = useState<FormState>(() => toForm(issue));
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
   const isNew = !issue;
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
@@ -137,10 +139,15 @@ export default function IssueModal({
     }
   }
 
-  function submit() {
-    if (!form.name.trim()) return;
-    onSave({
-      name: form.name,
+  async function submit() {
+    if (!form.name.trim()) {
+      setError("Name is required");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    const result = await onSave({
+      name: form.name.trim(),
       summary: form.summary || null,
       details: form.details || null,
       status: form.status,
@@ -153,6 +160,22 @@ export default function IssueModal({
       assignee: form.assignee || null,
       isolatedFix: form.isolatedFix,
     } as Partial<Issue>);
+    // On success the parent unmounts this modal; on failure keep it open.
+    if (!result.ok) {
+      setError(result.error || "Save failed");
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!onDelete || !confirm("Delete this issue?")) return;
+    setSaving(true);
+    setError("");
+    const result = await onDelete();
+    if (!result.ok) {
+      setError(result.error || "Delete failed");
+      setSaving(false);
+    }
   }
 
   return (
@@ -236,25 +259,33 @@ export default function IssueModal({
         </div>
 
         {/* footer */}
-        <div className="flex items-center justify-between border-t border-border px-5 py-3">
-          <div>
+        <div className="flex items-center justify-between gap-3 border-t border-border px-5 py-3">
+          <div className="flex items-center gap-3">
             {onDelete && (
               <button
-                onClick={() => {
-                  if (confirm("Delete this issue?")) onDelete();
-                }}
-                className="rounded-md px-3 py-1.5 text-sm text-red-400 hover:bg-red-500/10"
+                onClick={handleDelete}
+                disabled={saving}
+                className="rounded-md px-3 py-1.5 text-sm text-red-400 hover:bg-red-500/10 disabled:opacity-50"
               >
                 Delete
               </button>
             )}
+            {error && <span className="text-sm text-red-400">{error}</span>}
           </div>
           <div className="flex gap-2">
-            <button onClick={onClose} className="rounded-md border border-border px-3 py-1.5 text-sm text-muted hover:bg-panel2">
+            <button
+              onClick={onClose}
+              disabled={saving}
+              className="rounded-md border border-border px-3 py-1.5 text-sm text-muted hover:bg-panel2 disabled:opacity-50"
+            >
               Cancel
             </button>
-            <button onClick={submit} className="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium hover:bg-blue-500">
-              {isNew ? "Create" : "Save"}
+            <button
+              onClick={submit}
+              disabled={saving}
+              className="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium hover:bg-blue-500 disabled:opacity-50"
+            >
+              {saving ? "Saving…" : isNew ? "Create" : "Save"}
             </button>
           </div>
         </div>

@@ -29,7 +29,7 @@ Next.js 14 (App Router) · React · Tailwind · Prisma · PostgreSQL.
 ```bash
 npm install
 cp .env.example .env          # set APP_PASSWORD, SESSION_SECRET, DATABASE_URL
-npx prisma db push            # create tables
+npx prisma migrate deploy     # create tables from committed migrations
 npm run db:seed               # optional: a few sample issues
 npm run dev                   # http://localhost:3000
 ```
@@ -60,9 +60,9 @@ npm run dev                   # http://localhost:3000
 2. Push this repo to GitHub, import it in [Vercel](https://vercel.com).
 3. In Vercel → Project → Settings → Environment Variables, set:
    `DATABASE_URL`, `APP_PASSWORD`, `SESSION_SECRET`, `ISSUE_PREFIX`.
-4. Deploy. After the first deploy, run `npx prisma db push` against the prod
-   DB once (locally with prod `DATABASE_URL`, or via a one-off job), then run
-   the Notion migration the same way.
+4. Deploy. After the first deploy, run `npx prisma migrate deploy` against the
+   prod DB once (locally with prod `DATABASE_URL`, or via a one-off job), then
+   run the Notion migration the same way.
 
 The `build` script runs `prisma generate` automatically.
 

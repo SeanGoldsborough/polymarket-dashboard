@@ -25,8 +25,9 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://scopa:scopa@db:5432/scopa?schema=public
-      APP_PASSWORD: ${APP_PASSWORD:-change-me}
-      SESSION_SECRET: ${SESSION_SECRET:-change-me-long-random}
+      # No defaults: compose fails loudly if these aren't set in .env.
+      APP_PASSWORD: ${APP_PASSWORD:?set APP_PASSWORD in .env}
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in .env}
       ISSUE_PREFIX: ${ISSUE_PREFIX:-SCOPAS}
     ports:
       - "3000:3000"

@@ -28,38 +28,63 @@ export default function BoardApp({ initialIssues }: { initialIssues: Issue[] }) 
   );
 
   // ---- data mutations -------------------------------------------------
-  async function patchIssue(id: number, patch: Partial<Issue>) {
-    setIssues((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
-    const res = await fetch(`/api/issues/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(patch),
-    });
-    if (!res.ok) router.refresh(); // revert by reloading server truth on failure
+  // Optimistically apply `patch`, then reconcile with the server response.
+  // On failure, roll back to the exact previous row. Returns success.
+  async function patchIssue(id: number, patch: Partial<Issue>): Promise<boolean> {
+    const prev = issues.find((i) => i.id === id);
+    setIssues((list) => list.map((i) => (i.id === id ? { ...i, ...patch } : i)));
+    try {
+      const res = await fetch(`/api/issues/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) throw new Error("patch failed");
+      const updated = await res.json();
+      setIssues((list) => list.map((i) => (i.id === id ? { ...i, ...updated } : i)));
+      return true;
+    } catch {
+      if (prev) setIssues((list) => list.map((i) => (i.id === id ? prev : i)));
+      return false;
+    }
   }
 
-  async function saveIssue(data: Partial<Issue>) {
+  // Returns {ok, error}; the modal stays open and shows the error on failure.
+  async function saveIssue(data: Partial<Issue>): Promise<{ ok: boolean; error?: string }> {
     if (creating) {
       const res = await fetch("/api/issues", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (res.ok) {
-        const created = await res.json();
-        setIssues((prev) => [{ ...created, _count: { comments: 0 } }, ...prev]);
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        return { ok: false, error: d.error || "Could not create issue" };
       }
+      const created = await res.json();
+      setIssues((prev) => [{ ...created, _count: { comments: 0 } }, ...prev]);
       setCreating(false);
-    } else if (editing) {
-      await patchIssue(editing.id, data);
+      return { ok: true };
     }
-    setEditing(null);
+    if (editing) {
+      const ok = await patchIssue(editing.id, data);
+      if (!ok) return { ok: false, error: "Save failed — please retry." };
+      setEditing(null);
+      return { ok: true };
+    }
+    return { ok: false, error: "Nothing to save" };
   }
 
-  async function deleteIssue(id: number) {
-    setIssues((prev) => prev.filter((i) => i.id !== id));
-    await fetch(`/api/issues/${id}`, { method: "DELETE" });
+  async function deleteIssue(id: number): Promise<{ ok: boolean; error?: string }> {
+    const snapshot = issues;
+    setIssues((list) => list.filter((i) => i.id !== id));
+    const res = await fetch(`/api/issues/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      setIssues(snapshot); // restore on failure
+      return { ok: false, error: "Delete failed" };
+    }
     setEditing(null);
+    return { ok: true };
   }
 
   async function logout() {
@@ -176,6 +201,7 @@ export default function BoardApp({ initialIssues }: { initialIssues: Issue[] }) 
 
       {(editing || creating) && (
         <IssueModal
+          key={editing?.id ?? "new"}
           issue={editing}
           onClose={() => {
             setEditing(null);

@@ -12,7 +12,6 @@ export type Issue = {
   isolatedFix: boolean;
   isolationNotes: string | null;
   assignee: string | null;
-  boardOrder: number;
   createdAt: string;
   updatedAt: string;
   _count?: { comments: number };

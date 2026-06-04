@@ -10,6 +10,7 @@
  *   4. npm run db:migrate-notion
  */
 import { prisma } from "../src/lib/db";
+import { AREAS, SEVERITIES, STATUSES, TYPES } from "../src/lib/constants";
 
 const TOKEN = process.env.NOTION_TOKEN;
 const DB_ID = process.env.NOTION_DATABASE_ID;
@@ -22,6 +23,11 @@ function rich(prop: any): string | null {
 }
 function select(prop: any): string | null {
   return prop?.select?.name ?? null;
+}
+// A Notion column named "Status" is usually the dedicated Status property type
+// (data at prop.status.name), not a Select. Fall back to select just in case.
+function statusVal(prop: any): string | null {
+  return prop?.status?.name ?? prop?.select?.name ?? null;
 }
 function checkbox(prop: any): boolean {
   return Boolean(prop?.checkbox);
@@ -61,6 +67,13 @@ async function main() {
   const pages = await queryAll();
   console.log(`Got ${pages.length} pages. Importing…`);
 
+  // Track values that don't match our option lists so they can be reconciled.
+  const offList: Record<string, Set<string>> = { status: new Set(), severity: new Set(), area: new Set(), type: new Set() };
+  const note = (field: keyof typeof offList, value: string | null, allowed: readonly string[]) => {
+    if (value && !allowed.includes(value)) offList[field].add(value);
+    return value;
+  };
+
   let imported = 0;
   for (const page of pages) {
     const p = page.properties;
@@ -69,10 +82,10 @@ async function main() {
 
     const data = {
       name,
-      status: select(p["Status"]) ?? "Backlog",
-      severity: select(p["Severity"]),
-      area: select(p["Area"]),
-      type: select(p["Type"]),
+      status: note("status", statusVal(p["Status"]), STATUSES) ?? "Backlog",
+      severity: note("severity", select(p["Severity"]), SEVERITIES),
+      area: note("area", select(p["Area"]), AREAS),
+      type: note("type", select(p["Type"]), TYPES),
       details: rich(p["Details"]),
       summary: rich(p["Summary"]),
       file: rich(p["File"]),
@@ -102,6 +115,15 @@ async function main() {
   }
 
   console.log(`✅ Imported ${imported} issues. Sequence reset to ${max._max.id ?? 0}.`);
+
+  // Surface any values that aren't in src/lib/constants.ts. They still import
+  // and show on the board (in their own column / table), but won't have a
+  // predefined color or appear in the dropdowns until you add them.
+  for (const [field, set] of Object.entries(offList)) {
+    if (set.size > 0) {
+      console.warn(`⚠️  ${field}: values not in constants.ts → ${[...set].join(", ")}`);
+    }
+  }
 }
 
 main()

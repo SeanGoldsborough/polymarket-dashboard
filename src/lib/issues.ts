@@ -1,7 +1,9 @@
+import type { Prisma } from "@prisma/client";
 import { AREAS, SEVERITIES, STATUSES, TYPES } from "./constants";
 
-// Whitelist + light validation for incoming issue payloads.
-const STRING_FIELDS = ["name", "details", "summary", "file", "suggestedFix", "isolationNotes", "assignee"] as const;
+// Whitelist + light validation for incoming issue payloads. The whitelist
+// prevents mass-assignment; enum fields are checked against the allowed sets.
+const STRING_FIELDS = ["details", "summary", "file", "suggestedFix", "isolationNotes", "assignee"] as const;
 
 const ENUM_FIELDS: Record<string, readonly string[]> = {
   status: STATUSES,
@@ -12,13 +14,25 @@ const ENUM_FIELDS: Record<string, readonly string[]> = {
 
 export type IssueInput = Record<string, unknown>;
 
-export function sanitizeIssue(body: IssueInput, { partial }: { partial: boolean }) {
+export function sanitizeIssue(
+  body: IssueInput,
+  { partial }: { partial: boolean },
+): Prisma.IssueCreateInput {
   const data: Record<string, unknown> = {};
+
+  // Name is required on create, and must not be blanked on update.
+  if ("name" in body) {
+    const s = body.name == null ? "" : String(body.name).trim();
+    if (s === "") throw new Error("Name is required");
+    data.name = s;
+  } else if (!partial) {
+    throw new Error("Name is required");
+  }
 
   for (const f of STRING_FIELDS) {
     if (f in body) {
       const v = body[f];
-      data[f] = v == null || v === "" ? (f === "name" ? "" : null) : String(v);
+      data[f] = v == null || v === "" ? null : String(v);
     }
   }
 
@@ -35,13 +49,11 @@ export function sanitizeIssue(body: IssueInput, { partial }: { partial: boolean 
     }
   }
 
-  if ("isolatedFix" in body) data.isolatedFix = Boolean(body.isolatedFix);
-  if ("boardOrder" in body && typeof body.boardOrder === "number") data.boardOrder = body.boardOrder;
-
-  if (!partial) {
-    if (!data.name || String(data.name).trim() === "") throw new Error("Name is required");
-    if (!("status" in data)) data.status = "Backlog";
+  if ("isolatedFix" in body) {
+    data.isolatedFix = body.isolatedFix === true || body.isolatedFix === "true";
   }
 
-  return data;
+  if (!partial && !("status" in data)) data.status = "Backlog";
+
+  return data as Prisma.IssueCreateInput;
 }
