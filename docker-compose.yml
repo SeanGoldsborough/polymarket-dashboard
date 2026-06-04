@@ -1,0 +1,35 @@
+# Local/self-hosted stack: the app + a Postgres database.
+# Usage: cp .env.example .env  (edit APP_PASSWORD / SESSION_SECRET), then:
+#   docker compose up --build
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: scopa
+      POSTGRES_PASSWORD: scopa
+      POSTGRES_DB: scopa
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scopa"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://scopa:scopa@db:5432/scopa?schema=public
+      APP_PASSWORD: ${APP_PASSWORD:-change-me}
+      SESSION_SECRET: ${SESSION_SECRET:-change-me-long-random}
+      ISSUE_PREFIX: ${ISSUE_PREFIX:-SCOPAS}
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:

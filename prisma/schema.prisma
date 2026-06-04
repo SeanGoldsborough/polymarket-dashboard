@@ -1,0 +1,46 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// One row = one issue/bug, mirroring the Notion "Scopas Bug Board" schema.
+// Select-style fields (status/severity/area/type) are stored as plain strings
+// validated in the app layer, matching Notion's flexible single-selects.
+model Issue {
+  id             Int       @id @default(autoincrement())
+  name           String
+  status         String    @default("Backlog")
+  severity       String?
+  area           String?
+  type           String?
+  details        String?
+  summary        String?
+  file           String?
+  suggestedFix   String?
+  isolatedFix    Boolean   @default(false)
+  isolationNotes String?
+  assignee       String? // new field not present in the original Notion board
+  boardOrder     Float     @default(0) // manual ordering within a board column
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  comments       Comment[]
+
+  @@index([status])
+  @@index([severity])
+  @@index([area])
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  issueId   Int
+  issue     Issue    @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  author    String?
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([issueId])
+}
