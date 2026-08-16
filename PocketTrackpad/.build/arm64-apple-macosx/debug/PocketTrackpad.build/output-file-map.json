@@ -1,0 +1,82 @@
+{
+  "": {
+    "swift-dependencies": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/master.swiftdeps"
+  },
+  "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/Sources/Core/AppSettings.swift": {
+    "dependencies": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/AppSettings.d",
+    "object": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/AppSettings.swift.o",
+    "swiftmodule": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/AppSettings~partial.swiftmodule",
+    "swift-dependencies": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/AppSettings.swiftdeps",
+    "diagnostics": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/AppSettings.dia"
+  },
+  "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/Sources/Core/HIDContract.swift": {
+    "dependencies": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/HIDContract.d",
+    "object": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/HIDContract.swift.o",
+    "swiftmodule": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/HIDContract~partial.swiftmodule",
+    "swift-dependencies": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/HIDContract.swiftdeps",
+    "diagnostics": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/HIDContract.dia"
+  },
+  "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/Sources/Core/HIDPeripheralAPI.swift": {
+    "dependencies": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/HIDPeripheralAPI.d",
+    "object": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/HIDPeripheralAPI.swift.o",
+    "swiftmodule": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/HIDPeripheralAPI~partial.swiftmodule",
+    "swift-dependencies": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/HIDPeripheralAPI.swiftdeps",
+    "diagnostics": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/HIDPeripheralAPI.dia"
+  },
+  "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/Sources/HID/BondStore.swift": {
+    "dependencies": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/BondStore.d",
+    "object": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/BondStore.swift.o",
+    "swiftmodule": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/BondStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/BondStore.swiftdeps",
+    "diagnostics": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/BondStore.dia"
+  },
+  "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/Sources/HID/HIDKeyCode.swift": {
+    "dependencies": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/HIDKeyCode.d",
+    "object": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/HIDKeyCode.swift.o",
+    "swiftmodule": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/HIDKeyCode~partial.swiftmodule",
+    "swift-dependencies": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/HIDKeyCode.swiftdeps",
+    "diagnostics": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/HIDKeyCode.dia"
+  },
+  "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/Sources/HID/HIDPeripheralManager.swift": {
+    "dependencies": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/HIDPeripheralManager.d",
+    "object": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/HIDPeripheralManager.swift.o",
+    "swiftmodule": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/HIDPeripheralManager~partial.swiftmodule",
+    "swift-dependencies": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/HIDPeripheralManager.swiftdeps",
+    "diagnostics": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/HIDPeripheralManager.dia"
+  },
+  "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/Sources/HID/HIDReportMap.swift": {
+    "dependencies": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/HIDReportMap.d",
+    "object": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/HIDReportMap.swift.o",
+    "swiftmodule": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/HIDReportMap~partial.swiftmodule",
+    "swift-dependencies": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/HIDReportMap.swiftdeps",
+    "diagnostics": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/HIDReportMap.dia"
+  },
+  "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/Sources/HID/ReportPump.swift": {
+    "dependencies": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/ReportPump.d",
+    "object": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/ReportPump.swift.o",
+    "swiftmodule": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/ReportPump~partial.swiftmodule",
+    "swift-dependencies": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/ReportPump.swiftdeps",
+    "diagnostics": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/ReportPump.dia"
+  },
+  "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/Sources/Input/GestureState.swift": {
+    "dependencies": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/GestureState.d",
+    "object": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/GestureState.swift.o",
+    "swiftmodule": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/GestureState~partial.swiftmodule",
+    "swift-dependencies": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/GestureState.swiftdeps",
+    "diagnostics": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/GestureState.dia"
+  },
+  "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/Sources/Input/PointerEngine.swift": {
+    "dependencies": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/PointerEngine.d",
+    "object": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/PointerEngine.swift.o",
+    "swiftmodule": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/PointerEngine~partial.swiftmodule",
+    "swift-dependencies": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/PointerEngine.swiftdeps",
+    "diagnostics": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/PointerEngine.dia"
+  },
+  "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/Sources/Input/ScrollEngine.swift": {
+    "dependencies": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/ScrollEngine.d",
+    "object": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/ScrollEngine.swift.o",
+    "swiftmodule": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/ScrollEngine~partial.swiftmodule",
+    "swift-dependencies": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/ScrollEngine.swiftdeps",
+    "diagnostics": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpad.build/ScrollEngine.dia"
+  }
+}

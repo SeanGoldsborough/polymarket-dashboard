@@ -1,0 +1,12 @@
+{
+  "": {
+    "swift-dependencies": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpadPackageTests.build/master.swiftdeps"
+  },
+  "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpadPackageTests.derived/runner.swift": {
+    "dependencies": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpadPackageTests.build/runner.d",
+    "object": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpadPackageTests.build/runner.swift.o",
+    "swiftmodule": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpadPackageTests.build/runner~partial.swiftmodule",
+    "swift-dependencies": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpadPackageTests.build/runner.swiftdeps",
+    "diagnostics": "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/.build/arm64-apple-macosx/debug/PocketTrackpadPackageTests.build/runner.dia"
+  }
+}

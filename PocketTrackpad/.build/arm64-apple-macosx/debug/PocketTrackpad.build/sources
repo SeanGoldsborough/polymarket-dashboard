@@ -1,0 +1,11 @@
+/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/Sources/Core/AppSettings.swift
+/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/Sources/Core/HIDContract.swift
+/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/Sources/Core/HIDPeripheralAPI.swift
+/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/Sources/HID/BondStore.swift
+/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/Sources/HID/HIDKeyCode.swift
+/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/Sources/HID/HIDPeripheralManager.swift
+/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/Sources/HID/HIDReportMap.swift
+/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/Sources/HID/ReportPump.swift
+/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/Sources/Input/GestureState.swift
+/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/Sources/Input/PointerEngine.swift
+/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/Sources/Input/ScrollEngine.swift

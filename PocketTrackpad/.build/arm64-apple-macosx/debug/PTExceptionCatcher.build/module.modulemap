@@ -1,0 +1,4 @@
+module PTExceptionCatcher {
+    umbrella header "/Users/seangoldsborough/polymarket-dashboard/PocketTrackpad/Sources/ObjCShim/include/PTExceptionCatcher.h"
+    export *
+}

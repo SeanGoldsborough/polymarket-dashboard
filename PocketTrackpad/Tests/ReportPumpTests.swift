@@ -380,7 +380,9 @@ final class ReportPumpTests: XCTestCase {
 
         XCTAssertEqual(transport.sent[0].payload.count, MouseReport.payloadSize + 1)
         XCTAssertEqual(transport.sent[0].payload[0], HIDReportID.mouse.rawValue)
-        XCTAssertEqual(Int(Int8(bitPattern: transport.sent[0].payload[1])), 4)
+        // Payload after the report-ID prefix is [buttons, dx, dy, wheel, pan],
+        // so dx is at index 2 (index 1 is the buttons byte, 0 here).
+        XCTAssertEqual(Int(Int8(bitPattern: transport.sent[0].payload[2])), 4)
 
         XCTAssertEqual(transport.sent[1].payload.count, ConsumerReport.payloadSize + 1)
         XCTAssertEqual(transport.sent[1].payload[0], HIDReportID.consumer.rawValue)

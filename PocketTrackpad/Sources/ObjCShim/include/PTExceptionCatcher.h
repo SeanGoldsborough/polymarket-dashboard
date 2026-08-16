@@ -88,7 +88,14 @@ typedef NS_ERROR_ENUM(PTObjCExceptionErrorDomain, PTObjCExceptionErrorCode) {
 ///          alternative, and only around `addService:`/descriptor construction,
 ///          which are pure input validation and leave nothing half-built.
 + (BOOL)tryBlock:(NS_NOESCAPE dispatch_block_t)block
-           error:(NSError *_Nullable *_Nullable)error;
+           error:(NSError *_Nullable *_Nullable)error
+    NS_SWIFT_NAME(tryBlock(_:));
+// Without the explicit NS_SWIFT_NAME, Swift's Objective-C error-convention
+// importer renames a `BOOL`/trailing-`NSError**` method named `tryBlock:` to a
+// throwing `try(_:)` and leaves `tryBlock` as a Swift-3-obsoleted alias, so the
+// call sites below (and the usage documented above) fail to compile. Pinning the
+// name keeps the throwing import — the `error:` param is still consumed by
+// `throws` — while restoring `tryBlock(_:)` as the callable name.
 
 @end
 
