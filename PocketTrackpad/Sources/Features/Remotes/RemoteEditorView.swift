@@ -602,7 +602,7 @@ struct LeafActionEditor: View {
 
         case .key:
             Section {
-                ForEach(KeyModifiers.editableModifiers, id: \.name) { entry in
+                ForEach(KeyModifiers.editableModifiers) { entry in
                     Toggle(isOn: modifierBinding(entry.modifier)) {
                         HStack {
                             Text(entry.glyph)
@@ -695,16 +695,16 @@ enum KeyCatalogue {
         KeyChoice(usage: HIDKeyCode.return),
         KeyChoice(usage: HIDKeyCode.escape),
         KeyChoice(usage: HIDKeyCode.space),
-        KeyChoice(usage: RemoteKeyUsage.tab),
-        KeyChoice(usage: RemoteKeyUsage.deleteBackspace),
+        KeyChoice(usage: HIDKeyCode.tab),
+        KeyChoice(usage: HIDKeyCode.delete),
         KeyChoice(usage: HIDKeyCode.upArrow),
         KeyChoice(usage: HIDKeyCode.downArrow),
         KeyChoice(usage: HIDKeyCode.leftArrow),
         KeyChoice(usage: HIDKeyCode.rightArrow),
-        KeyChoice(usage: RemoteKeyUsage.pageUp),
-        KeyChoice(usage: RemoteKeyUsage.pageDown),
-        KeyChoice(usage: RemoteKeyUsage.home),
-        KeyChoice(usage: RemoteKeyUsage.end)
+        KeyChoice(usage: HIDKeyCode.pageUp),
+        KeyChoice(usage: HIDKeyCode.pageDown),
+        KeyChoice(usage: HIDKeyCode.home),
+        KeyChoice(usage: HIDKeyCode.end)
     ]
 
     /// a…z are contiguous from usage 0x04, 1…0 from 0x1E, F1…F12 from 0x3A.
@@ -713,31 +713,41 @@ enum KeyCatalogue {
     static let functionKeys: [KeyChoice] = (0x3A...0x45).map { KeyChoice(usage: UInt8($0)) }
 
     static let keypad: [KeyChoice] = [
-        KeyChoice(usage: RemoteKeyUsage.keypad0),
-        KeyChoice(usage: RemoteKeyUsage.keypad1),
-        KeyChoice(usage: RemoteKeyUsage.keypad2),
-        KeyChoice(usage: RemoteKeyUsage.keypad3),
-        KeyChoice(usage: RemoteKeyUsage.keypad4),
-        KeyChoice(usage: RemoteKeyUsage.keypad5),
-        KeyChoice(usage: RemoteKeyUsage.keypad6),
-        KeyChoice(usage: RemoteKeyUsage.keypad7),
-        KeyChoice(usage: RemoteKeyUsage.keypad8),
-        KeyChoice(usage: RemoteKeyUsage.keypad9),
-        KeyChoice(usage: RemoteKeyUsage.keypadPeriod),
-        KeyChoice(usage: RemoteKeyUsage.keypadEnter),
-        KeyChoice(usage: RemoteKeyUsage.keypadPlus),
-        KeyChoice(usage: RemoteKeyUsage.keypadMinus),
-        KeyChoice(usage: RemoteKeyUsage.keypadAsterisk),
-        KeyChoice(usage: RemoteKeyUsage.keypadSlash)
+        KeyChoice(usage: HIDKeyCode.keypad0),
+        KeyChoice(usage: HIDKeyCode.keypad1),
+        KeyChoice(usage: HIDKeyCode.keypad2),
+        KeyChoice(usage: HIDKeyCode.keypad3),
+        KeyChoice(usage: HIDKeyCode.keypad4),
+        KeyChoice(usage: HIDKeyCode.keypad5),
+        KeyChoice(usage: HIDKeyCode.keypad6),
+        KeyChoice(usage: HIDKeyCode.keypad7),
+        KeyChoice(usage: HIDKeyCode.keypad8),
+        KeyChoice(usage: HIDKeyCode.keypad9),
+        KeyChoice(usage: HIDKeyCode.keypadPeriod),
+        KeyChoice(usage: HIDKeyCode.keypadEnter),
+        KeyChoice(usage: HIDKeyCode.keypadPlus),
+        KeyChoice(usage: HIDKeyCode.keypadMinus),
+        KeyChoice(usage: HIDKeyCode.keypadAsterisk),
+        KeyChoice(usage: HIDKeyCode.keypadSlash)
     ]
 
-    static let groups: [(title: String, choices: [KeyChoice])] = [
-        ("Navigation", navigation),
-        ("Letters", letters),
-        ("Numbers", numbers),
-        ("Function Keys", functionKeys),
-        ("Keypad", keypad)
+    static let groups: [KeyGroup] = [
+        KeyGroup(title: "Navigation", choices: navigation),
+        KeyGroup(title: "Letters", choices: letters),
+        KeyGroup(title: "Numbers", choices: numbers),
+        KeyGroup(title: "Function Keys", choices: functionKeys),
+        KeyGroup(title: "Keypad", choices: keypad)
     ]
+}
+
+/// A named run of keys in the chooser. A struct rather than a tuple: `ForEach`
+/// needs an `id`, and Swift key paths cannot address tuple elements. Declared
+/// at file scope rather than nested, so it does not shadow `SwiftUI.Group`.
+struct KeyGroup: Identifiable {
+    let title: String
+    let choices: [KeyChoice]
+
+    var id: String { title }
 }
 
 struct KeyChooserView: View {
@@ -746,7 +756,7 @@ struct KeyChooserView: View {
 
     var body: some View {
         List {
-            ForEach(KeyCatalogue.groups, id: \.title) { group in
+            ForEach(KeyCatalogue.groups) { group in
                 Section {
                     ForEach(group.choices) { choice in
                         Button {
@@ -830,7 +840,7 @@ struct SymbolPickerView: View {
                         .padding()
                         .background(
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(Color(.secondarySystemGroupedBackground))
+                                .fill(Theme.cardBackground)
                         )
                 }
                 .padding(.horizontal, 16)
@@ -851,7 +861,7 @@ struct SymbolPickerView: View {
                                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                                     .fill(symbol == selection
                                           ? Color.accentColor.opacity(0.2)
-                                          : Color(.secondarySystemGroupedBackground))
+                                          : Theme.cardBackground)
                             )
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -864,7 +874,7 @@ struct SymbolPickerView: View {
             }
             .padding(16)
         }
-        .background(Color(.systemGroupedBackground))
+        .background(Theme.pageBackground)
         .navigationTitle("Symbol")
         .navigationBarTitleDisplayMode(.inline)
     }

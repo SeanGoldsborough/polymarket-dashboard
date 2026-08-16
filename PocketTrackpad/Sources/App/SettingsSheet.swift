@@ -64,7 +64,16 @@ public struct SettingsSheet: View {
                     ConnectionView(peripheral: runtime.sender, settings: runtime.settings)
                 }
                 tabContent(.general) {
-                    GeneralSettingsView(settings: runtime.settings)
+                    // Diagnostics is passed in so General ▸ Advanced can offer
+                    // its own route to the probe screen. It is deliberately
+                    // reachable from two places: the Connection tab's toolbar
+                    // (where a user fighting a pairing problem already is) and
+                    // Advanced (where someone following the README looks).
+                    GeneralSettingsView(
+                        settings: runtime.settings,
+                        diagnostics: runtime.diagnostics,
+                        isRadioStubbed: runtime.isRadioStubbed
+                    )
                 }
                 tabContent(.remotes) {
                     RemotesListView(

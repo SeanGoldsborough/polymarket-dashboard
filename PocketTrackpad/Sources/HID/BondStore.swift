@@ -32,18 +32,30 @@ import Foundation
 
 /// Codable persistence of `[KnownCentral]` in `UserDefaults`.
 ///
-/// Not actor-isolated. Every caller in the app is on the main actor, and
-/// `UserDefaults` is itself thread-safe, so adding isolation would only make the
-/// type awkward to use from `XCTestCase` methods without buying any safety.
-public final class BondStore {
+/// Not actor-isolated, and `@unchecked Sendable` rather than isolated:
+///
+///  * Isolating it to the main actor would make it awkward to use from
+///    `XCTestCase` methods and would buy nothing — there is no state here to
+///    protect.
+///  * The only stored properties are two immutable `let`s. `UserDefaults` is
+///    documented as thread-safe, and every read-modify-write below goes through
+///    it. The "unchecked" part is therefore a claim about `UserDefaults`, not
+///    about this class.
+///  * `JSONEncoder`/`JSONDecoder` are NOT Sendable and are deliberately created
+///    per call rather than stored. They cost microseconds against a list capped
+///    at 32 entries that is touched once per connection, so keeping the type
+///    trivially Sendable is worth more than the allocation.
+///
+/// The read-modify-write pairs (`add`, `touch`, `remove`) are not atomic across
+/// processes. They do not need to be: only this app writes this key, and only
+/// from the main actor in practice.
+public final class BondStore: @unchecked Sendable {
 
     /// Default storage key. Namespaced so a future migration can leave it behind.
     public static let defaultKey = "hid.knownCentrals.v1"
 
     private let defaults: UserDefaults
     private let key: String
-    private let encoder = JSONEncoder()
-    private let decoder = JSONDecoder()
 
     /// - Parameters:
     ///   - defaults: injectable so tests can use
@@ -66,7 +78,7 @@ public final class BondStore {
     /// all over a list that rebuilds itself on the next connection.
     public func all() -> [KnownCentral] {
         guard let data = defaults.data(forKey: key) else { return [] }
-        guard let decoded = try? decoder.decode([KnownCentral].self, from: data) else {
+        guard let decoded = try? JSONDecoder().decode([KnownCentral].self, from: data) else {
             defaults.removeObject(forKey: key)
             return []
         }
@@ -108,10 +120,19 @@ public final class BondStore {
             if let workingTopology { entry.workingTopology = workingTopology }
             list[index] = entry
         } else {
+            // CoreBluetooth's peripheral role never tells us the central's name
+            // (see `HIDPeripheralManager.rememberCentral`), so a first sighting
+            // usually lands here with `name == nil`.
+            let resolvedName: String
+            if let name, !name.isEmpty {
+                resolvedName = name
+            } else {
+                resolvedName = "Unknown Mac"
+            }
             list.append(
                 KnownCentral(
                     id: id,
-                    name: name?.isEmpty == false ? name! : "Unknown Mac",
+                    name: resolvedName,
                     lastSeen: date,
                     workingTopology: workingTopology
                 )
@@ -143,7 +164,7 @@ public final class BondStore {
         // launch and an unbounded list of one-off centrals from a busy office is
         // pure launch-time cost for data nobody will read.
         let trimmed = Array(list.sorted { $0.lastSeen > $1.lastSeen }.prefix(32))
-        guard let data = try? encoder.encode(trimmed) else {
+        guard let data = try? JSONEncoder().encode(trimmed) else {
             // `KnownCentral` is a plain Codable struct of UUID/String/Date/enum, so
             // this cannot fail in practice. Failing silently is still the right
             // call: the alternative is crashing the radio layer over a cache.

@@ -69,9 +69,27 @@ open PocketTrackpad.xcodeproj
 
 Build to a **physical device** — CoreBluetooth peripheral mode does not
 function in the Simulator, and the app substitutes `StubHIDSender` there and
-shows a badge saying so. Then: **General ▸ Advanced ▸ Diagnostics ▸ Run All
-Probes**, and while it runs, open Bluetooth settings on the Mac and click
-Connect when the phone appears.
+shows a badge saying so. Then open the settings sheet and reach Diagnostics
+either from the **stethoscope button on the Connection tab** or from
+**General ▸ Advanced ▸ Diagnostics**, and hit **Run All Probes**. While it
+runs, open Bluetooth settings on the Mac and click Connect when the phone
+appears.
+
+**Unpair the Mac between probes.** macOS caches the GATT database for bonded
+devices, and the peripheral role has no way to invalidate that cache —
+invalidation requires a Service Changed indication (0x2A05) from the
+system-owned GATT service, which `CBPeripheralManager` gives no access to. A
+sweep run against an already-bonded Mac will keep using the *stale* service
+layout, so it can report results that describe the previous topology rather
+than the one under test. Sweep against a Mac that has never bonded, or remove
+the device in System Settings ▸ Bluetooth between attempts.
+
+Also note that `start(topology:)` returning without throwing is **not**
+success. Descriptor rejection is synchronous and throws; other rejections
+(short-form UUID, duplicate publish) arrive later via
+`peripheralManager(_:didAdd:error:)` and surface as `connectionState ==
+.failed`. A topology is only viable once a `didAdd` success has landed *and* a
+central has subscribed.
 
 `HIDDiagnostics` walks all three topologies, records for each whether the
 service published, whether a central subscribed, and which reports stuck, then

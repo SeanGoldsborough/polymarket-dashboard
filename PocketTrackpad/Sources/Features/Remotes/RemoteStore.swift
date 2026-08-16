@@ -209,13 +209,13 @@ public final class RemoteStore {
         let sourceIndices = offsets.sorted().filter { result.indices.contains($0) }
         guard !sourceIndices.isEmpty else { return result }
 
-        let moving = sourceIndices.map { result[$0] }
+        let lifted = sourceIndices.map { result[$0] }
         let removedBefore = sourceIndices.filter { $0 < destination }.count
         for index in sourceIndices.reversed() {
             result.remove(at: index)
         }
         let insertionPoint = min(max(destination - removedBefore, 0), result.count)
-        result.insert(contentsOf: moving, at: insertionPoint)
+        result.insert(contentsOf: lifted, at: insertionPoint)
         return result
     }
 

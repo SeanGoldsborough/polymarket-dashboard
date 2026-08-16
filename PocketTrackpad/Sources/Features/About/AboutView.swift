@@ -198,6 +198,8 @@ public struct AboutView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Theme.pageBackground)
         .navigationTitle("About")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $isShowingWhatsNew) {
@@ -218,7 +220,7 @@ public struct AboutView: View {
                 .frame(width: 88, height: 88)
                 .background(
                     RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .fill(Color(.secondarySystemGroupedBackground))
+                        .fill(Theme.cardBackground)
                 )
                 .accessibilityHidden(true)
 

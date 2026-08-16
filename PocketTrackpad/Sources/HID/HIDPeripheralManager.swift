@@ -35,6 +35,10 @@
 
 import Foundation
 import CoreBluetooth
+// `@Observable` / `@ObservationIgnored` live in the Observation module, which
+// Foundation does not re-export. Imported explicitly so this file does not
+// silently depend on SwiftUI being pulled into the target by something else.
+import Observation
 
 #if canImport(UIKit)
 import UIKit
@@ -730,81 +734,42 @@ extension HIDPeripheralManager: ReportPumpTransport {
 
 extension HIDPeripheralManager: CBPeripheralManagerDelegate {
 
-    // Every method below is `nonisolated` because CBPeripheralManagerDelegate is a
-    // plain @objc protocol with no actor isolation, and immediately re-enters the
-    // main actor with `assumeIsolated`. The manager is created with `queue: .main`,
-    // so that assertion holds by construction. See the file header.
+    // WHY EVERY METHOD HERE IS A ONE-LINER
+    //
+    // `CBPeripheralManagerDelegate` is a plain @objc protocol with no actor
+    // isolation, so its methods cannot be `@MainActor` — the conformance would not
+    // type-check. They are therefore `nonisolated` and immediately re-enter the
+    // actor with `MainActor.assumeIsolated`, which is a runtime assertion that the
+    // current thread really is main. It is, by construction: the manager is created
+    // with `queue: .main`. `assumeIsolated` is used rather than
+    // `Task { @MainActor in … }` because a Task hop would REORDER callbacks —
+    // `didSubscribeTo` could land after the first report, and
+    // `peripheralManagerIsReady` could land before the `updateValue` that provoked
+    // it. The backpressure protocol cannot survive either.
+    //
+    // The real work lives in the `@MainActor` handlers below, one per callback,
+    // rather than inline in the closure. That keeps each closure a single
+    // expression (no generic-inference corners, no early `return` that reads like
+    // it exits the delegate method when it only exits the closure) and makes the
+    // handlers directly callable from tests or from a replay harness.
 
     public nonisolated func peripheralManagerDidUpdateState(_ peripheral: CBPeripheralManager) {
-        MainActor.assumeIsolated {
-            let state = peripheral.state
-            appendLog(.info, "Bluetooth state: \(Self.describe(state))")
-            switch state {
-            case .poweredOn:
-                // Re-publish if the user (or the diagnostics screen) asked for a
-                // topology before the radio was ready. Errors on this path are
-                // logged rather than thrown — there is no caller to throw to — so
-                // anything driving `start(topology:)` must also watch
-                // `connectionState` for `.failed`.
-                if let topology = desiredTopology, publishedServices.isEmpty, pendingServiceAdds.isEmpty {
-                    do {
-                        try start(topology: topology)
-                    } catch {
-                        connectionState = .failed(error.localizedDescription)
-                        appendLog(.failure, "Deferred start failed: \(error.localizedDescription)")
-                    }
-                }
-            case .poweredOff:
-                connectionState = .poweredOff
-                resetLinkState()
-            case .unauthorized:
-                connectionState = .unauthorized
-                resetLinkState()
-            case .unsupported:
-                // The Simulator always lands here: CoreBluetooth peripheral mode is
-                // not implemented in it at all. `StubHIDSender` exists for that case.
-                connectionState = .unsupported
-                resetLinkState()
-            case .resetting:
-                connectionState = .idle
-                resetLinkState()
-            case .unknown:
-                connectionState = .idle
-            @unknown default:
-                connectionState = .idle
-            }
-        }
+        MainActor.assumeIsolated { self.handleStateChange(of: peripheral) }
     }
 
-    public nonisolated func peripheralManager(_ peripheral: CBPeripheralManager, didAdd service: CBService, error: Error?) {
-        MainActor.assumeIsolated {
-            pendingServiceAdds.remove(service.uuid)
-            if let error {
-                // The asynchronous half of the rejection story. `add(_:)` accepted
-                // the service synchronously (no NSException) and iOS then refused it
-                // here — which is how a short-form UUID or a duplicate publish
-                // fails. `start(topology:)` has long since returned, so this can
-                // only be reported through state and the log; the diagnostics screen
-                // must therefore wait for either `.advertising` + a `didAdd` success
-                // or a `.failed` before declaring a topology viable.
-                connectionState = .failed(error.localizedDescription)
-                appendLog(.failure, "didAdd rejected \(service.uuid.uuidString): \(error.localizedDescription)")
-            } else {
-                publishedServices.insert(service.uuid)
-                appendLog(.success, "Published \(service.uuid.uuidString).")
-            }
-        }
+    public nonisolated func peripheralManager(
+        _ peripheral: CBPeripheralManager,
+        didAdd service: CBService,
+        error: Error?
+    ) {
+        MainActor.assumeIsolated { self.handleServiceAdded(service, error: error) }
     }
 
-    public nonisolated func peripheralManagerDidStartAdvertising(_ peripheral: CBPeripheralManager, error: Error?) {
-        MainActor.assumeIsolated {
-            if let error {
-                connectionState = .failed(error.localizedDescription)
-                appendLog(.failure, "Advertising failed: \(error.localizedDescription)")
-            } else {
-                appendLog(.success, "Advertising started.")
-            }
-        }
+    public nonisolated func peripheralManagerDidStartAdvertising(
+        _ peripheral: CBPeripheralManager,
+        error: Error?
+    ) {
+        MainActor.assumeIsolated { self.handleAdvertisingStarted(error: error) }
     }
 
     public nonisolated func peripheralManager(
@@ -812,37 +777,7 @@ extension HIDPeripheralManager: CBPeripheralManagerDelegate {
         central: CBCentral,
         didSubscribeTo characteristic: CBCharacteristic
     ) {
-        MainActor.assumeIsolated {
-            subscribedCentrals[central.identifier] = central
-
-            if let id = reportID(for: characteristic) {
-                if activeTopology == .singleCharacteristicPrefixed {
-                    // One characteristic carries everything, so a single subscribe
-                    // enables all three reports at once.
-                    subscribedReports.formUnion(activeTopology.supportedReports)
-                    appendLog(.success, "Central subscribed to the shared report characteristic (all report IDs).")
-                } else {
-                    subscribedReports.insert(id)
-                    appendLog(.success, "Central subscribed to the \(id.displayName) report.")
-                }
-            } else {
-                appendLog(.info, "Central subscribed to \(characteristic.uuid.uuidString).")
-            }
-
-            rememberCentral(central)
-            connectionState = .connected(centralName: currentCentralName())
-            appendLog(
-                .info,
-                "Link MTU allows \(central.maximumUpdateValueLength) bytes per notification."
-            )
-
-            // Push the current battery level immediately; macOS shows the HID
-            // device's battery in the menu bar and an empty value reads as 0%.
-            publishBatteryLevel()
-
-            pump.start()
-            pump.resume()
-        }
+        MainActor.assumeIsolated { self.handleSubscribe(central: central, to: characteristic) }
     }
 
     public nonisolated func peripheralManager(
@@ -851,134 +786,269 @@ extension HIDPeripheralManager: CBPeripheralManagerDelegate {
         didUnsubscribeFrom characteristic: CBCharacteristic
     ) {
         MainActor.assumeIsolated {
-            if let id = reportID(for: characteristic) {
-                if activeTopology == .singleCharacteristicPrefixed {
-                    subscribedReports.removeAll()
-                } else {
-                    subscribedReports.remove(id)
-                }
-                appendLog(.info, "Central unsubscribed from \(id.displayName).")
-            } else {
-                appendLog(.info, "Central unsubscribed from \(characteristic.uuid.uuidString).")
-            }
-
-            if subscribedReports.isEmpty {
-                subscribedCentrals.removeValue(forKey: central.identifier)
-                // Anything queued belongs to a session that is over.
-                pump.reset()
-                if case .failed = connectionState {
-                    // Keep the failure visible.
-                } else {
-                    connectionState = peripheral.isAdvertising ? .advertising : .idle
-                }
-            }
+            self.handleUnsubscribe(central: central, from: characteristic, isAdvertising: peripheral.isAdvertising)
         }
     }
 
     public nonisolated func peripheralManagerIsReady(toUpdateSubscribers peripheral: CBPeripheralManager) {
-        MainActor.assumeIsolated {
-            // THE backpressure signal. Nothing else tells us the transmit queue
-            // drained, and there is no polling API to ask.
-            pump.resume()
+        MainActor.assumeIsolated { self.handleReadyToUpdateSubscribers() }
+    }
+
+    public nonisolated func peripheralManager(
+        _ peripheral: CBPeripheralManager,
+        didReceiveRead request: CBATTRequest
+    ) {
+        MainActor.assumeIsolated { self.handleRead(request, on: peripheral) }
+    }
+
+    public nonisolated func peripheralManager(
+        _ peripheral: CBPeripheralManager,
+        didReceiveWrite requests: [CBATTRequest]
+    ) {
+        MainActor.assumeIsolated { self.handleWrites(requests, on: peripheral) }
+    }
+
+    public nonisolated func peripheralManager(
+        _ peripheral: CBPeripheralManager,
+        willRestoreState dict: [String: Any]
+    ) {
+        MainActor.assumeIsolated { self.handleStateRestoration(dict) }
+    }
+}
+
+// MARK: - Delegate handlers (main-actor isolated)
+
+extension HIDPeripheralManager {
+
+    private func handleStateChange(of peripheral: CBPeripheralManager) {
+        let state = peripheral.state
+        appendLog(.info, "Bluetooth state: \(Self.describe(state))")
+
+        switch state {
+        case .poweredOn:
+            // Re-publish if the user (or the diagnostics screen) asked for a
+            // topology before the radio was ready. Errors on this path are logged
+            // rather than thrown — there is no caller left to throw to — so anything
+            // driving `start(topology:)` must also watch `connectionState` for
+            // `.failed` rather than relying on the throw alone.
+            guard let topology = desiredTopology,
+                  publishedServices.isEmpty,
+                  pendingServiceAdds.isEmpty else { return }
+            do {
+                try start(topology: topology)
+            } catch {
+                connectionState = .failed(error.localizedDescription)
+                appendLog(.failure, "Deferred start failed: \(error.localizedDescription)")
+            }
+
+        case .poweredOff:
+            connectionState = .poweredOff
+            resetLinkState()
+
+        case .unauthorized:
+            connectionState = .unauthorized
+            resetLinkState()
+
+        case .unsupported:
+            // The Simulator always lands here — CoreBluetooth's peripheral role is
+            // not implemented in it at all. `StubHIDSender` exists for that case.
+            connectionState = .unsupported
+            resetLinkState()
+
+        case .resetting:
+            // Transient: the stack is restarting and will call back with a real
+            // state shortly. Services are gone either way.
+            connectionState = .idle
+            resetLinkState()
+
+        case .unknown:
+            connectionState = .idle
+
+        @unknown default:
+            connectionState = .idle
         }
     }
 
-    public nonisolated func peripheralManager(_ peripheral: CBPeripheralManager, didReceiveRead request: CBATTRequest) {
-        MainActor.assumeIsolated {
-            // Only characteristics with a nil cached value reach here; CoreBluetooth
-            // answers the static ones itself.
+    private func handleServiceAdded(_ service: CBService, error: Error?) {
+        pendingServiceAdds.remove(service.uuid)
+        guard let error else {
+            publishedServices.insert(service.uuid)
+            appendLog(.success, "Published \(service.uuid.uuidString).")
+            return
+        }
+        // The ASYNCHRONOUS half of the rejection story. `add(_:)` accepted the
+        // service synchronously (no NSException, so `start(topology:)` returned
+        // cleanly) and iOS refused it here instead — which is how a short-form UUID
+        // or a duplicate publish fails. `start(topology:)` has long since returned,
+        // so this can only be reported through state and the log. A diagnostics
+        // sweep must therefore wait for a `didAdd` success (or a `.failed`) before
+        // declaring a topology viable; a clean return from `start` is necessary but
+        // not sufficient.
+        connectionState = .failed(error.localizedDescription)
+        appendLog(.failure, "didAdd rejected \(service.uuid.uuidString): \(error.localizedDescription)")
+    }
+
+    private func handleAdvertisingStarted(error: Error?) {
+        if let error {
+            connectionState = .failed(error.localizedDescription)
+            appendLog(.failure, "Advertising failed: \(error.localizedDescription)")
+        } else {
+            appendLog(.success, "Advertising started.")
+        }
+    }
+
+    private func handleSubscribe(central: CBCentral, to characteristic: CBCharacteristic) {
+        subscribedCentrals[central.identifier] = central
+
+        if let id = reportID(for: characteristic) {
+            if activeTopology == .singleCharacteristicPrefixed {
+                // One characteristic carries everything, so a single subscribe
+                // enables all three report IDs at once.
+                subscribedReports.formUnion(activeTopology.supportedReports)
+                appendLog(.success, "Central subscribed to the shared report characteristic (all report IDs).")
+            } else {
+                subscribedReports.insert(id)
+                appendLog(.success, "Central subscribed to the \(id.displayName) report.")
+            }
+        } else {
+            appendLog(.info, "Central subscribed to \(characteristic.uuid.uuidString).")
+        }
+
+        rememberCentral(central)
+        connectionState = .connected(centralName: currentCentralName())
+        appendLog(.info, "Link MTU allows \(central.maximumUpdateValueLength) bytes per notification.")
+
+        // Push the current battery level immediately. macOS surfaces a HID device's
+        // battery in the Bluetooth menu, and a characteristic that has never
+        // notified reads as 0%, which produces a "low battery" warning on connect.
+        publishBatteryLevel()
+
+        pump.start()
+        pump.resume()
+    }
+
+    private func handleUnsubscribe(
+        central: CBCentral,
+        from characteristic: CBCharacteristic,
+        isAdvertising: Bool
+    ) {
+        if let id = reportID(for: characteristic) {
+            if activeTopology == .singleCharacteristicPrefixed {
+                subscribedReports.removeAll()
+            } else {
+                subscribedReports.remove(id)
+            }
+            appendLog(.info, "Central unsubscribed from \(id.displayName).")
+        } else {
+            appendLog(.info, "Central unsubscribed from \(characteristic.uuid.uuidString).")
+        }
+
+        guard subscribedReports.isEmpty else { return }
+        subscribedCentrals.removeValue(forKey: central.identifier)
+        // Anything still queued belongs to a session that is over; replaying a
+        // half-finished drag into the next central would be actively wrong.
+        pump.reset()
+        if case .failed = connectionState {
+            // Keep a failure the user has not seen yet.
+            return
+        }
+        connectionState = isAdvertising ? .advertising : .idle
+    }
+
+    private func handleReadyToUpdateSubscribers() {
+        // THE backpressure signal. Nothing else tells us the transmit queue
+        // drained, and there is no polling API to ask.
+        pump.resume()
+    }
+
+    private func handleRead(_ request: CBATTRequest, on peripheral: CBPeripheralManager) {
+        // Only characteristics with a nil cached value reach here; CoreBluetooth
+        // answers the static ones (Report Map, HID Information, DIS) itself.
+        let uuid = request.characteristic.uuid
+
+        if uuid == CBUUID(string: HIDUUID.batteryLevel) {
+            request.value = Data([batteryPercent])
+            peripheral.respond(to: request, withResult: .success)
+            return
+        }
+
+        if uuid == CBUUID(string: HIDUUID.protocolMode) {
+            request.value = Data([protocolMode])
+            peripheral.respond(to: request, withResult: .success)
+            return
+        }
+
+        if let id = reportID(for: request.characteristic) {
+            // A host may read the current report state at any time. Answer with the
+            // last thing we sent, padded to the declared size, or an all-zero (idle)
+            // report — never an empty value, which some HID parsers treat as a
+            // malformed report and respond to by tearing the connection down.
+            let size = Self.payloadSize(for: id)
+            var value = lastPayload[id] ?? Data(repeating: 0, count: size)
+            if value.count < size {
+                value.append(Data(repeating: 0, count: size - value.count))
+            }
+            request.value = value
+            peripheral.respond(to: request, withResult: .success)
+            return
+        }
+
+        // An unanswered read blocks the ATT channel until it times out, so every
+        // path must respond — including the ones we do not recognise.
+        peripheral.respond(to: request, withResult: .attributeNotFound)
+        appendLog(.warning, "Unhandled read of \(uuid.uuidString).")
+    }
+
+    private func handleWrites(_ requests: [CBATTRequest], on peripheral: CBPeripheralManager) {
+        for request in requests {
             let uuid = request.characteristic.uuid
+            let bytes = request.value.map { Array($0) } ?? []
 
-            if uuid == CBUUID(string: HIDUUID.batteryLevel) {
-                request.value = Data([batteryPercent])
-                peripheral.respond(to: request, withResult: .success)
-                return
-            }
-
-            if uuid == CBUUID(string: HIDUUID.protocolMode) {
-                request.value = Data([protocolMode])
-                peripheral.respond(to: request, withResult: .success)
-                return
-            }
-
-            if let id = reportID(for: request.characteristic) {
-                // A host may read the current report state at any time. Answer with
-                // the last thing we sent, or an all-zero (idle) report — never an
-                // empty value, which some HID parsers treat as a malformed report
-                // and respond to by tearing the connection down.
-                let size = Self.payloadSize(for: id)
-                var value = lastPayload[id] ?? Data(repeating: 0, count: size)
-                if value.count < size {
-                    value.append(Data(repeating: 0, count: size - value.count))
-                }
-                request.value = value
-                peripheral.respond(to: request, withResult: .success)
-                return
-            }
-
-            // An unanswered read blocks the ATT channel until it times out, so every
-            // path must respond, even the ones we do not recognise.
-            peripheral.respond(to: request, withResult: .attributeNotFound)
-            appendLog(.warning, "Unhandled read of \(uuid.uuidString).")
-        }
-    }
-
-    public nonisolated func peripheralManager(_ peripheral: CBPeripheralManager, didReceiveWrite requests: [CBATTRequest]) {
-        MainActor.assumeIsolated {
-            for request in requests {
-                let uuid = request.characteristic.uuid
-                let bytes = request.value.map { Array($0) } ?? []
-
-                if uuid == CBUUID(string: HIDUUID.hidControlPoint) {
-                    // 0x00 = Suspend, 0x01 = Exit Suspend. macOS sends Suspend when
-                    // it sleeps; continuing to notify a suspended host wastes battery
-                    // on both ends and the reports are discarded anyway.
-                    if bytes.first == 0x00 {
-                        appendLog(.info, "Host requested SUSPEND; pausing the report pump.")
-                        pump.stop()
-                    } else {
-                        appendLog(.info, "Host requested EXIT SUSPEND; resuming the report pump.")
-                        pump.start()
-                        pump.resume()
-                    }
-                } else if uuid == CBUUID(string: HIDUUID.protocolMode) {
-                    // 0x00 = Boot Protocol, 0x01 = Report Protocol. We record it and
-                    // report it back on read. We do NOT reshape the payloads: the
-                    // boot topology's descriptor already declares boot-compatible
-                    // layouts whose first three (mouse) and eight (keyboard) bytes
-                    // are exactly what boot protocol specifies, so the same encoders
-                    // are correct in either mode.
-                    if let mode = bytes.first {
-                        protocolMode = mode
-                        appendLog(.info, "Host set Protocol Mode to \(mode == 0 ? "Boot" : "Report").")
-                    }
+            if uuid == CBUUID(string: HIDUUID.hidControlPoint) {
+                // 0x00 = Suspend, 0x01 = Exit Suspend. macOS sends Suspend as it
+                // sleeps; continuing to notify a suspended host drains both batteries
+                // and the reports are discarded at the far end anyway.
+                if bytes.first == 0x00 {
+                    appendLog(.info, "Host requested SUSPEND; pausing the report pump.")
+                    pump.stop()
                 } else {
-                    appendLog(.warning, "Unhandled write to \(uuid.uuidString).")
+                    appendLog(.info, "Host requested EXIT SUSPEND; resuming the report pump.")
+                    pump.start()
+                    pump.resume()
                 }
+            } else if uuid == CBUUID(string: HIDUUID.protocolMode) {
+                // 0x00 = Boot Protocol, 0x01 = Report Protocol. We record it and
+                // report it back on read, but we do NOT reshape the payloads: the
+                // boot descriptor already declares layouts whose leading three
+                // (mouse) and eight (keyboard) bytes are exactly what boot protocol
+                // specifies, so one set of encoders is correct in either mode.
+                if let mode = bytes.first {
+                    protocolMode = mode
+                    appendLog(.info, "Host set Protocol Mode to \(mode == 0 ? "Boot" : "Report").")
+                }
+            } else {
+                appendLog(.warning, "Unhandled write to \(uuid.uuidString).")
             }
+        }
 
-            // CoreBluetooth requires exactly one response per didReceiveWrite call,
-            // addressed to the FIRST request, regardless of how many arrived or
-            // whether they were write-without-response. Skipping it wedges the ATT
-            // channel.
-            if let first = requests.first {
-                peripheral.respond(to: first, withResult: .success)
-            }
+        // CoreBluetooth requires exactly one response per `didReceiveWrite` call,
+        // addressed to the FIRST request, regardless of how many arrived or whether
+        // they were write-without-response. Skipping it wedges the ATT channel.
+        if let first = requests.first {
+            peripheral.respond(to: first, withResult: .success)
         }
     }
 
-    public nonisolated func peripheralManager(_ peripheral: CBPeripheralManager, willRestoreState dict: [String: Any]) {
-        MainActor.assumeIsolated {
-            // Only reachable if a restore identifier is ever passed to the
-            // CBPeripheralManager initialiser (it currently is not — see `init`).
-            // Implemented anyway because its ABSENCE, when a restore identifier IS
-            // present, is an immediate exception at launch.
-            let services = (dict[CBPeripheralManagerRestoredStateServicesKey] as? [CBMutableService]) ?? []
-            appendLog(.info, "State restoration returned \(services.count) service(s); rebuilding from scratch.")
-        }
+    private func handleStateRestoration(_ dict: [String: Any]) {
+        // Only reachable if a restore identifier is ever passed to the
+        // CBPeripheralManager initialiser (it currently is not — see `init`).
+        // Implemented anyway because its ABSENCE, when a restore identifier IS
+        // present, raises at launch.
+        let services = (dict[CBPeripheralManagerRestoredStateServicesKey] as? [CBMutableService]) ?? []
+        appendLog(.info, "State restoration returned \(services.count) service(s); rebuilding from scratch.")
     }
 
-    // MARK: Helpers used by the delegate
+    // MARK: Shared helpers
 
     private func resetLinkState() {
         subscribedCentrals.removeAll()

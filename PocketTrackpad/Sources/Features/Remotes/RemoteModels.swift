@@ -16,48 +16,6 @@ import Foundation
 import CoreTransferable
 import UniformTypeIdentifiers
 
-// MARK: - Keyboard usages
-
-/// Raw HID Keyboard/Keypad page (0x07) usage IDs that the built-in remotes need.
-///
-/// `HIDKeyCode` (owned by the input team) is the general-purpose table and is
-/// called directly wherever a named constant for the key exists — `.upArrow`,
-/// `.return`, `.escape`, `.space`, the function row — as well as for typing
-/// text via `HIDKeyCode.keystrokes(for:)`. The values below are the remaining
-/// usages needed by the keypad and presentation remotes, quoted from the USB
-/// HID Usage Tables 1.4, §10 "Keyboard/Keypad Page (0x07)".
-public enum RemoteKeyUsage {
-    public static let deleteBackspace: UInt8 = 0x2A
-    public static let tab: UInt8             = 0x2B
-    public static let pageUp: UInt8          = 0x4B
-    public static let pageDown: UInt8        = 0x4E
-    public static let home: UInt8            = 0x4A
-    public static let end: UInt8             = 0x4D
-
-    // Letters used by presenter shortcuts.
-    public static let letterB: UInt8 = 0x05
-    public static let letterL: UInt8 = 0x0F
-    public static let letterW: UInt8 = 0x1A
-
-    // Keypad block.
-    public static let keypadSlash: UInt8    = 0x54
-    public static let keypadAsterisk: UInt8 = 0x55
-    public static let keypadMinus: UInt8    = 0x56
-    public static let keypadPlus: UInt8     = 0x57
-    public static let keypadEnter: UInt8    = 0x58
-    public static let keypad1: UInt8        = 0x59
-    public static let keypad2: UInt8        = 0x5A
-    public static let keypad3: UInt8        = 0x5B
-    public static let keypad4: UInt8        = 0x5C
-    public static let keypad5: UInt8        = 0x5D
-    public static let keypad6: UInt8        = 0x5E
-    public static let keypad7: UInt8        = 0x5F
-    public static let keypad8: UInt8        = 0x60
-    public static let keypad9: UInt8        = 0x61
-    public static let keypad0: UInt8        = 0x62
-    public static let keypadPeriod: UInt8   = 0x63
-}
-
 // MARK: - Action
 
 /// The kinds a `RemoteAction` can take. Split out from the enum itself so the
@@ -166,28 +124,28 @@ public enum RemoteAction: Codable, Hashable, Sendable {
         case HIDKeyCode.downArrow:         return "Down Arrow"
         case HIDKeyCode.leftArrow:         return "Left Arrow"
         case HIDKeyCode.rightArrow:        return "Right Arrow"
-        case RemoteKeyUsage.deleteBackspace: return "Delete"
-        case RemoteKeyUsage.tab:           return "Tab"
-        case RemoteKeyUsage.pageUp:        return "Page Up"
-        case RemoteKeyUsage.pageDown:      return "Page Down"
-        case RemoteKeyUsage.home:          return "Home"
-        case RemoteKeyUsage.end:           return "End"
-        case RemoteKeyUsage.keypadSlash:   return "Keypad ÷"
-        case RemoteKeyUsage.keypadAsterisk: return "Keypad ×"
-        case RemoteKeyUsage.keypadMinus:   return "Keypad −"
-        case RemoteKeyUsage.keypadPlus:    return "Keypad +"
-        case RemoteKeyUsage.keypadEnter:   return "Keypad Enter"
-        case RemoteKeyUsage.keypadPeriod:  return "Keypad ."
-        case RemoteKeyUsage.keypad0:       return "Keypad 0"
-        case RemoteKeyUsage.keypad1:       return "Keypad 1"
-        case RemoteKeyUsage.keypad2:       return "Keypad 2"
-        case RemoteKeyUsage.keypad3:       return "Keypad 3"
-        case RemoteKeyUsage.keypad4:       return "Keypad 4"
-        case RemoteKeyUsage.keypad5:       return "Keypad 5"
-        case RemoteKeyUsage.keypad6:       return "Keypad 6"
-        case RemoteKeyUsage.keypad7:       return "Keypad 7"
-        case RemoteKeyUsage.keypad8:       return "Keypad 8"
-        case RemoteKeyUsage.keypad9:       return "Keypad 9"
+        case HIDKeyCode.delete: return "Delete"
+        case HIDKeyCode.tab:           return "Tab"
+        case HIDKeyCode.pageUp:        return "Page Up"
+        case HIDKeyCode.pageDown:      return "Page Down"
+        case HIDKeyCode.home:          return "Home"
+        case HIDKeyCode.end:           return "End"
+        case HIDKeyCode.keypadSlash:   return "Keypad ÷"
+        case HIDKeyCode.keypadAsterisk: return "Keypad ×"
+        case HIDKeyCode.keypadMinus:   return "Keypad −"
+        case HIDKeyCode.keypadPlus:    return "Keypad +"
+        case HIDKeyCode.keypadEnter:   return "Keypad Enter"
+        case HIDKeyCode.keypadPeriod:  return "Keypad ."
+        case HIDKeyCode.keypad0:       return "Keypad 0"
+        case HIDKeyCode.keypad1:       return "Keypad 1"
+        case HIDKeyCode.keypad2:       return "Keypad 2"
+        case HIDKeyCode.keypad3:       return "Keypad 3"
+        case HIDKeyCode.keypad4:       return "Keypad 4"
+        case HIDKeyCode.keypad5:       return "Keypad 5"
+        case HIDKeyCode.keypad6:       return "Keypad 6"
+        case HIDKeyCode.keypad7:       return "Keypad 7"
+        case HIDKeyCode.keypad8:       return "Keypad 8"
+        case HIDKeyCode.keypad9:       return "Keypad 9"
         case 0x04...0x1D:
             // a…z are contiguous from usage 0x04.
             let letters = Array("abcdefghijklmnopqrstuvwxyz")
@@ -502,46 +460,46 @@ extension Remote {
         symbolName: "number.square.fill",
         buttons: [
             RemoteButton(id: builtInID(remote: 2, button: 1), title: "7",
-                         action: .key(usage: RemoteKeyUsage.keypad7, modifiers: .none)),
+                         action: .key(usage: HIDKeyCode.keypad7, modifiers: .none)),
             RemoteButton(id: builtInID(remote: 2, button: 2), title: "8",
-                         action: .key(usage: RemoteKeyUsage.keypad8, modifiers: .none)),
+                         action: .key(usage: HIDKeyCode.keypad8, modifiers: .none)),
             RemoteButton(id: builtInID(remote: 2, button: 3), title: "9",
-                         action: .key(usage: RemoteKeyUsage.keypad9, modifiers: .none)),
+                         action: .key(usage: HIDKeyCode.keypad9, modifiers: .none)),
             RemoteButton(id: builtInID(remote: 2, button: 4), title: "÷",
-                         action: .key(usage: RemoteKeyUsage.keypadSlash, modifiers: .none)),
+                         action: .key(usage: HIDKeyCode.keypadSlash, modifiers: .none)),
 
             RemoteButton(id: builtInID(remote: 2, button: 5), title: "4",
-                         action: .key(usage: RemoteKeyUsage.keypad4, modifiers: .none)),
+                         action: .key(usage: HIDKeyCode.keypad4, modifiers: .none)),
             RemoteButton(id: builtInID(remote: 2, button: 6), title: "5",
-                         action: .key(usage: RemoteKeyUsage.keypad5, modifiers: .none)),
+                         action: .key(usage: HIDKeyCode.keypad5, modifiers: .none)),
             RemoteButton(id: builtInID(remote: 2, button: 7), title: "6",
-                         action: .key(usage: RemoteKeyUsage.keypad6, modifiers: .none)),
+                         action: .key(usage: HIDKeyCode.keypad6, modifiers: .none)),
             RemoteButton(id: builtInID(remote: 2, button: 8), title: "×",
-                         action: .key(usage: RemoteKeyUsage.keypadAsterisk, modifiers: .none)),
+                         action: .key(usage: HIDKeyCode.keypadAsterisk, modifiers: .none)),
 
             RemoteButton(id: builtInID(remote: 2, button: 9), title: "1",
-                         action: .key(usage: RemoteKeyUsage.keypad1, modifiers: .none)),
+                         action: .key(usage: HIDKeyCode.keypad1, modifiers: .none)),
             RemoteButton(id: builtInID(remote: 2, button: 10), title: "2",
-                         action: .key(usage: RemoteKeyUsage.keypad2, modifiers: .none)),
+                         action: .key(usage: HIDKeyCode.keypad2, modifiers: .none)),
             RemoteButton(id: builtInID(remote: 2, button: 11), title: "3",
-                         action: .key(usage: RemoteKeyUsage.keypad3, modifiers: .none)),
+                         action: .key(usage: HIDKeyCode.keypad3, modifiers: .none)),
             RemoteButton(id: builtInID(remote: 2, button: 12), title: "−",
-                         action: .key(usage: RemoteKeyUsage.keypadMinus, modifiers: .none)),
+                         action: .key(usage: HIDKeyCode.keypadMinus, modifiers: .none)),
 
             RemoteButton(id: builtInID(remote: 2, button: 13), title: "0",
-                         action: .key(usage: RemoteKeyUsage.keypad0, modifiers: .none), span: 2),
+                         action: .key(usage: HIDKeyCode.keypad0, modifiers: .none), span: 2),
             RemoteButton(id: builtInID(remote: 2, button: 14), title: ".",
-                         action: .key(usage: RemoteKeyUsage.keypadPeriod, modifiers: .none)),
+                         action: .key(usage: HIDKeyCode.keypadPeriod, modifiers: .none)),
             RemoteButton(id: builtInID(remote: 2, button: 15), title: "+",
-                         action: .key(usage: RemoteKeyUsage.keypadPlus, modifiers: .none)),
+                         action: .key(usage: HIDKeyCode.keypadPlus, modifiers: .none)),
 
             RemoteButton(id: builtInID(remote: 2, button: 16), title: "Delete",
                          symbolName: "delete.left.fill",
-                         action: .key(usage: RemoteKeyUsage.deleteBackspace, modifiers: .none),
+                         action: .key(usage: HIDKeyCode.delete, modifiers: .none),
                          span: 2),
             RemoteButton(id: builtInID(remote: 2, button: 17), title: "Enter",
                          symbolName: "return",
-                         action: .key(usage: RemoteKeyUsage.keypadEnter, modifiers: .none),
+                         action: .key(usage: HIDKeyCode.keypadEnter, modifiers: .none),
                          span: 2)
         ],
         layout: .grid4,
@@ -571,13 +529,13 @@ extension Remote {
                 id: builtInID(remote: 3, button: 3),
                 title: "Page Up",
                 symbolName: "arrow.up.doc",
-                action: .key(usage: RemoteKeyUsage.pageUp, modifiers: .none)
+                action: .key(usage: HIDKeyCode.pageUp, modifiers: .none)
             ),
             RemoteButton(
                 id: builtInID(remote: 3, button: 4),
                 title: "Page Down",
                 symbolName: "arrow.down.doc",
-                action: .key(usage: RemoteKeyUsage.pageDown, modifiers: .none)
+                action: .key(usage: HIDKeyCode.pageDown, modifiers: .none)
             ),
             RemoteButton(
                 id: builtInID(remote: 3, button: 5),
@@ -591,20 +549,20 @@ extension Remote {
                 id: builtInID(remote: 3, button: 6),
                 title: "Black Screen",
                 symbolName: "moon.fill",
-                action: .key(usage: RemoteKeyUsage.letterB, modifiers: .none)
+                action: .key(usage: HIDKeyCode.b, modifiers: .none)
             ),
             RemoteButton(
                 id: builtInID(remote: 3, button: 7),
                 title: "White Screen",
                 symbolName: "sun.max.fill",
-                action: .key(usage: RemoteKeyUsage.letterW, modifiers: .none)
+                action: .key(usage: HIDKeyCode.w, modifiers: .none)
             ),
             RemoteButton(
                 id: builtInID(remote: 3, button: 8),
                 title: "Laser Pointer",
                 symbolName: "cursorarrow.rays",
                 // PowerPoint toggles the laser pointer on ⌃L while presenting.
-                action: .key(usage: RemoteKeyUsage.letterL, modifiers: .leftControl),
+                action: .key(usage: HIDKeyCode.l, modifiers: .leftControl),
                 span: 2
             ),
             RemoteButton(
@@ -664,7 +622,7 @@ extension Remote {
                 // The consumer page's channel usages are outside the set this
                 // app's report map declares; Page Up is what tvOS and most
                 // media apps treat as "next".
-                action: .key(usage: RemoteKeyUsage.pageUp, modifiers: .none)
+                action: .key(usage: HIDKeyCode.pageUp, modifiers: .none)
             ),
 
             RemoteButton(
@@ -702,7 +660,7 @@ extension Remote {
                 id: builtInID(remote: 4, button: 12),
                 title: "Channel Down",
                 symbolName: "chevron.down.square.fill",
-                action: .key(usage: RemoteKeyUsage.pageDown, modifiers: .none)
+                action: .key(usage: HIDKeyCode.pageDown, modifiers: .none)
             ),
 
             RemoteButton(
@@ -842,17 +800,33 @@ extension ConsumerUsage {
     }
 }
 
+/// One row in the key-combo recorder's modifier list.
+///
+/// A struct rather than a tuple because `ForEach` needs an `id`, and Swift key
+/// paths cannot address tuple elements.
+public struct KeyModifierChoice: Identifiable, Hashable, Sendable {
+    public let modifier: KeyModifiers
+    public let name: String
+    public let glyph: String
+
+    public var id: String { name }
+
+    public init(modifier: KeyModifiers, name: String, glyph: String) {
+        self.modifier = modifier
+        self.name = name
+        self.glyph = glyph
+    }
+}
+
 extension KeyModifiers {
     /// Ordered list used by the key-combo recorder, left-hand modifiers only —
     /// the right-hand variants exist in the report but no UI needs them.
-    public static var editableModifiers: [(modifier: KeyModifiers, name: String, glyph: String)] {
-        [
-            (.leftControl, "Control", "⌃"),
-            (.leftOption,  "Option",  "⌥"),
-            (.leftShift,   "Shift",   "⇧"),
-            (.leftCommand, "Command", "⌘")
-        ]
-    }
+    public static let editableModifiers: [KeyModifierChoice] = [
+        KeyModifierChoice(modifier: .leftControl, name: "Control", glyph: "⌃"),
+        KeyModifierChoice(modifier: .leftOption,  name: "Option",  glyph: "⌥"),
+        KeyModifierChoice(modifier: .leftShift,   name: "Shift",   glyph: "⇧"),
+        KeyModifierChoice(modifier: .leftCommand, name: "Command", glyph: "⌘")
+    ]
 
     /// "⌘⇧" style prefix, empty when no modifiers are held.
     public var shortcutDescription: String {

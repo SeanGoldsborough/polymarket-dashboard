@@ -190,12 +190,16 @@ public enum HIDKeyCode {
     /// always wants Return and Tab to act as keys, not as literal control codes.
     /// Backspace (0x08) is mapped for the same reason.
     public static func keystrokes(for character: Character) -> (usage: UInt8, modifiers: KeyModifiers)? {
+        // Both spelled out. Written as a bare `.none` in a position whose
+        // contextual type could be inferred as Optional, Swift resolves it to
+        // `Optional.none` — silently returning nil instead of "no modifiers".
+        let unshifted = KeyModifiers.none
         let shifted = KeyModifiers.leftShift
 
         // CRLF is ONE grapheme cluster in Swift, so `"a\r\nb".count == 3` and the
         // middle character has two scalars. Without this case the newline in every
         // Windows-style string would be silently skipped by the guard below.
-        if character == "\r\n" { return (`return`, .none) }
+        if character == "\r\n" { return (`return`, unshifted) }
 
         // Multi-scalar graphemes (flags, ZWJ sequences, "é" written as e +
         // combining acute) have no single physical key. Reject them before
@@ -214,15 +218,15 @@ public enum HIDKeyCode {
         switch scalar {
         // Letters.
         case "a"..."z":
-            return (a + UInt8(scalar.value - asciiLowerA), .none)
+            return (a + UInt8(scalar.value - asciiLowerA), unshifted)
         case "A"..."Z":
             return (a + UInt8(scalar.value - asciiUpperA), shifted)
 
         // Digits. 1...9 are contiguous from 0x1E; 0 is at 0x27.
         case "1"..."9":
-            return (one + UInt8(scalar.value - asciiOne), .none)
+            return (one + UInt8(scalar.value - asciiOne), unshifted)
         case "0":
-            return (zero, .none)
+            return (zero, unshifted)
 
         // Shifted digit row.
         case "!": return (one,   shifted)
@@ -237,18 +241,18 @@ public enum HIDKeyCode {
         case ")": return (zero,  shifted)
 
         // Unshifted punctuation.
-        case " ":  return (space,        .none)
-        case "-":  return (minus,        .none)
-        case "=":  return (equal,        .none)
-        case "[":  return (leftBracket,  .none)
-        case "]":  return (rightBracket, .none)
-        case "\\": return (backslash,    .none)
-        case ";":  return (semicolon,    .none)
-        case "'":  return (quote,        .none)
-        case "`":  return (grave,        .none)
-        case ",":  return (comma,        .none)
-        case ".":  return (period,       .none)
-        case "/":  return (slash,        .none)
+        case " ":  return (space,        unshifted)
+        case "-":  return (minus,        unshifted)
+        case "=":  return (equal,        unshifted)
+        case "[":  return (leftBracket,  unshifted)
+        case "]":  return (rightBracket, unshifted)
+        case "\\": return (backslash,    unshifted)
+        case ";":  return (semicolon,    unshifted)
+        case "'":  return (quote,        unshifted)
+        case "`":  return (grave,        unshifted)
+        case ",":  return (comma,        unshifted)
+        case ".":  return (period,       unshifted)
+        case "/":  return (slash,        unshifted)
 
         // Shifted punctuation.
         case "_": return (minus,        shifted)
@@ -264,11 +268,11 @@ public enum HIDKeyCode {
         case "?": return (slash,        shifted)
 
         // Control characters worth honouring as physical keys.
-        case "\n": return (`return`, .none)   // U+000A
-        case "\r": return (`return`, .none)   // U+000D
-        case "\t": return (tab,      .none)   // U+0009
-        case "\u{08}": return (delete, .none) // backspace
-        case "\u{1B}": return (escape, .none) // escape
+        case "\n": return (`return`, unshifted)   // U+000A
+        case "\r": return (`return`, unshifted)   // U+000D
+        case "\t": return (tab,      unshifted)   // U+0009
+        case "\u{08}": return (delete, unshifted) // backspace
+        case "\u{1B}": return (escape, unshifted) // escape
 
         default:
             return nil

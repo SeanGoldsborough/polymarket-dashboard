@@ -64,7 +64,7 @@ public struct RemoteDetailView: View {
             }
             .padding(16)
         }
-        .background(Color(.systemGroupedBackground))
+        .background(Theme.pageBackground)
         .navigationTitle(remote.name)
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -101,7 +101,7 @@ private struct DisconnectedBanner: View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: "antenna.radiowaves.left.and.right.slash")
                 .font(.title3)
-                .foregroundStyle(.orange)
+                .foregroundStyle(Theme.warning)
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 4) {
@@ -118,11 +118,11 @@ private struct DisconnectedBanner: View {
         .padding(14)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
+                .fill(Theme.cardBackground)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(Color.orange.opacity(0.35), lineWidth: 1)
+                .strokeBorder(Theme.warning.opacity(0.35), lineWidth: 1)
         )
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Not connected. \(message)")
@@ -150,8 +150,8 @@ extension RemoteButton {
             switch usage {
             case HIDKeyCode.upArrow, HIDKeyCode.downArrow,
                  HIDKeyCode.leftArrow, HIDKeyCode.rightArrow,
-                 RemoteKeyUsage.pageUp, RemoteKeyUsage.pageDown,
-                 RemoteKeyUsage.deleteBackspace:
+                 HIDKeyCode.pageUp, HIDKeyCode.pageDown,
+                 HIDKeyCode.delete:
                 return true
             default:
                 return false
@@ -202,7 +202,7 @@ private struct RemoteButtonView: View {
             .foregroundStyle(isEnabled ? Color.primary : Color.secondary)
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color(.secondarySystemGroupedBackground))
+                    .fill(Theme.cardBackground)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)

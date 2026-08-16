@@ -53,6 +53,22 @@ public protocol HIDPeripheralControlling: HIDSending {
     /// Publish the HID/DIS/Battery services using `topology` and begin
     /// advertising. Throws rather than trapping when iOS rejects a service or
     /// descriptor, so the diagnostics screen can try the next candidate.
+    ///
+    /// IMPORTANT — returning without throwing does NOT mean the topology was
+    /// accepted. There are two distinct rejection paths and this call only
+    /// covers the first:
+    ///
+    ///  1. Synchronous. `CBPeripheralManager.add(_:)` RAISES an ObjC exception
+    ///     for a disallowed descriptor (0x2908). The shim converts that into a
+    ///     thrown `HIDError`, which is what this signature expresses.
+    ///  2. Asynchronous. Other rejections — short-form UUIDs, duplicate
+    ///     publishes — are delivered much later via
+    ///     `peripheralManager(_:didAdd:error:)`, long after this call has
+    ///     returned successfully. Those surface as `connectionState == .failed`.
+    ///
+    /// Any caller sweeping topologies must therefore await a `didAdd` success
+    /// or a `.failed` state before declaring a topology viable. Treating "did
+    /// not throw" as success will report a broken topology as working.
     func start(topology: ReportTopology) throws
 
     /// Tear down services and stop advertising.

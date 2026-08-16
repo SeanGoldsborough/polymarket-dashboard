@@ -56,8 +56,10 @@ targets:
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
+        # arm64, not armv7: armv7 is 32-bit and cannot coexist with an iOS 17
+        # deployment target — App Store submission rejects it outright.
         UIRequiredDeviceCapabilities:
-          - armv7
+          - arm64
           - bluetooth-le
         # Required or the app is killed on first CBPeripheralManager use.
         NSBluetoothAlwaysUsageDescription: >-

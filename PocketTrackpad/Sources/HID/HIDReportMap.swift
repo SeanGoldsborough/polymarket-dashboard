@@ -136,13 +136,13 @@ public struct HIDMainItemFlags: OptionSet, Sendable {
     public init(rawValue: Int) { self.rawValue = rawValue }
 
     // Bit 0
-    public static let data     = HIDMainItemFlags([])
+    public static let data     = HIDMainItemFlags(rawValue: 0)
     public static let constant = HIDMainItemFlags(rawValue: 1 << 0)
     // Bit 1
-    public static let array    = HIDMainItemFlags([])
+    public static let array    = HIDMainItemFlags(rawValue: 0)
     public static let variable = HIDMainItemFlags(rawValue: 1 << 1)
     // Bit 2
-    public static let absolute = HIDMainItemFlags([])
+    public static let absolute = HIDMainItemFlags(rawValue: 0)
     public static let relative = HIDMainItemFlags(rawValue: 1 << 2)
     // Bits 3...8
     public static let wrap          = HIDMainItemFlags(rawValue: 1 << 3)

@@ -5,23 +5,26 @@
 //  The device list: which Macs this iPhone has been paired with, which one is
 //  live right now, and the button that puts the radio back on the air.
 //
+//  Presented inside `SettingsSheet`'s `NavigationStack`, so this view owns its
+//  navigation title but no chrome of its own.
+//
 
 import SwiftUI
 
 @MainActor
-struct ConnectionView: View {
+public struct ConnectionView: View {
 
-    private let peripheral: HIDPeripheralControlling
+    private let peripheral: any HIDPeripheralControlling
     private let settings: AppSettings
 
     @State private var startFailure: String?
 
-    init(peripheral: HIDPeripheralControlling, settings: AppSettings = .shared) {
+    public init(peripheral: any HIDPeripheralControlling, settings: AppSettings) {
         self.peripheral = peripheral
         self.settings = settings
     }
 
-    var body: some View {
+    public var body: some View {
         List {
             headerSection
 
@@ -34,10 +37,11 @@ struct ConnectionView: View {
             actionSection
         }
         .listStyle(.insetGrouped)
+        // The page behind the list is `Theme.pageBackground`, applied by the
+        // sheet. Hiding the list's own background lets that show through so the
+        // designed dark palette is not overpainted by the system grouped grey.
         .scrollContentBackground(.hidden)
-        .background(Color(.systemGroupedBackground))
         .navigationTitle("Connection")
-        .navigationBarTitleDisplayMode(.inline)
         .animation(.easeInOut(duration: 0.25), value: isAdvertising)
         .animation(.easeInOut(duration: 0.25), value: peripheral.knownCentrals)
         .alert("Could not start advertising",
@@ -58,20 +62,22 @@ struct ConnectionView: View {
                     .fill(iconTint.gradient)
                     .frame(width: 88, height: 88)
                     .overlay {
-                        Image(systemName: "dot.radiowaves.left.and.right")
+                        Image(systemName: "antenna.radiowaves.left.and.right")
                             .font(.system(size: 38, weight: .semibold))
                             .foregroundStyle(.white)
                     }
-                    .shadow(color: iconTint.opacity(0.3), radius: 8, x: 0, y: 4)
+                    .shadow(color: iconTint.opacity(0.28), radius: 10, x: 0, y: 5)
                     .accessibilityHidden(true)
 
                 VStack(spacing: 4) {
                     Text("Device List")
                         .font(.title2.weight(.bold))
+                        .foregroundStyle(Theme.primaryText)
                     Text(statusSubtitle)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.secondaryText)
                         .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             .frame(maxWidth: .infinity)
@@ -86,11 +92,12 @@ struct ConnectionView: View {
 
     private var iconTint: Color {
         switch peripheral.connectionState {
-        case .connected:                          return .accentColor
-        case .advertising:                        return .accentColor
-        case .poweredOff, .unauthorized,
-             .unsupported, .failed:               return .red
-        case .idle:                               return .secondary
+        case .connected, .advertising:
+            return Theme.accent
+        case .poweredOff, .unauthorized, .unsupported, .failed:
+            return Theme.danger
+        case .idle:
+            return Theme.secondaryText
         }
     }
 
@@ -128,20 +135,22 @@ struct ConnectionView: View {
                         .progressViewStyle(.circular)
                     Text("Waiting for a Mac to connect")
                         .font(.headline)
+                        .foregroundStyle(Theme.primaryText)
                 }
 
-                // Not a euphemism for "something is happening in the
-                // background": iOS cannot initiate the pairing, so the last
-                // step genuinely has to happen on the Mac.
-                Text("Open System Settings ▸ Bluetooth on your Mac and click Connect next to \"\(settings.advertisedName)\".")
+                // Said plainly on purpose. iOS cannot initiate this pairing —
+                // a peripheral advertises and waits — so the last step really
+                // does have to happen on the Mac, and a vaguer sentence would
+                // leave the user staring at a spinner that never resolves.
+                Text("Open System Settings ▸ Bluetooth on your Mac and click Connect next to \u{201C}\(settings.advertisedName)\u{201D}.")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.vertical, 4)
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Waiting for a Mac to connect")
-            .accessibilityValue("Open System Settings, then Bluetooth, on your Mac and click Connect next to \(settings.advertisedName).")
+            .accessibilityValue("On your Mac, open System Settings, then Bluetooth, and click Connect next to \(settings.advertisedName).")
         }
     }
 
@@ -181,7 +190,7 @@ struct ConnectionView: View {
         HStack(spacing: 12) {
             Image(systemName: "laptopcomputer")
                 .font(.title3)
-                .foregroundStyle(isLive(central) ? Color.accentColor : Color.secondary)
+                .foregroundStyle(isLive(central) ? Theme.accent : Theme.secondaryText)
                 .frame(width: 28)
                 .accessibilityHidden(true)
 
@@ -189,17 +198,18 @@ struct ConnectionView: View {
                 HStack(spacing: 6) {
                     Text(central.name)
                         .font(.body.weight(.medium))
+                        .foregroundStyle(Theme.primaryText)
                         .lineLimit(1)
                     if isPrimary(central) {
                         Image(systemName: "crown.fill")
                             .font(.caption2)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Theme.warning)
                             .accessibilityHidden(true)
                     }
                 }
                 Text(detailText(for: central))
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.secondaryText)
                     .lineLimit(2)
             }
 
@@ -208,7 +218,7 @@ struct ConnectionView: View {
             if isLive(central) {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.title3)
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(Theme.accent)
                     .accessibilityHidden(true)
             }
         }
@@ -219,8 +229,8 @@ struct ConnectionView: View {
         .accessibilityHint("Swipe left to forget this Mac.")
     }
 
-    /// The first remembered central is the primary — the one the radio will
-    /// prefer when more than one Mac is in range.
+    /// The first remembered central is the primary — the one the radio prefers
+    /// when more than one known Mac is in range.
     private func isPrimary(_ central: KnownCentral) -> Bool {
         peripheral.knownCentrals.first?.id == central.id
     }
@@ -251,26 +261,18 @@ struct ConnectionView: View {
 
     private var actionSection: some View {
         Section {
-            Button(action: toggleAdvertising) {
-                Text(isAdvertising ? "Stop Advertising" : "Add Device")
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background {
-                        Capsule().fill(isAdvertising ? Color.secondary : Color.accentColor)
-                    }
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(isAdvertising ? "Stop advertising" : "Add device")
-            .accessibilityHint(isAdvertising
-                               ? "Takes this iPhone off the air."
-                               : "Makes this iPhone discoverable so a Mac can connect to it.")
+            Button(isAdvertising ? "Stop Advertising" : "Add Device", action: toggleAdvertising)
+                .buttonStyle(.primaryCapsule)
+                .accessibilityLabel(isAdvertising ? "Stop advertising" : "Add device")
+                .accessibilityHint(isAdvertising
+                                   ? "Takes this iPhone off the air."
+                                   : "Makes this iPhone discoverable so a Mac can connect to it.")
         } footer: {
             Text("Forgetting a Mac here only clears this iPhone's side. Remove the pairing on the Mac too, in System Settings ▸ Bluetooth.")
+                .foregroundStyle(Theme.secondaryText)
         }
         .listRowBackground(Color.clear)
-        .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0))
+        .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
     }
 
     private func toggleAdvertising() {
@@ -281,6 +283,8 @@ struct ConnectionView: View {
         do {
             try peripheral.start(topology: settings.preferredTopology)
         } catch {
+            // Verbatim: the exact rejection names which layout iOS refused, and
+            // that string is the whole input to the Diagnostics screen.
             startFailure = error.localizedDescription
         }
     }
@@ -290,7 +294,9 @@ struct ConnectionView: View {
 
 #Preview("Connection — connected") {
     NavigationStack {
-        ConnectionView(peripheral: StubHIDSender(), settings: AppSettings())
+        ConnectionView(peripheral: StubHIDSender(),
+                       settings: AppSettings(defaults: .previewDefaults))
+            .themedPage()
     }
 }
 
@@ -309,21 +315,24 @@ struct ConnectionView: View {
                                  lastSeen: .now.addingTimeInterval(-86_400 * 3))
                 ]
             ),
-            settings: AppSettings()
+            settings: AppSettings(defaults: .previewDefaults)
         )
+        .themedPage()
     }
 }
 
 #Preview("Connection — empty") {
     NavigationStack {
         ConnectionView(peripheral: StubHIDSender(connectionState: .idle, knownCentrals: []),
-                       settings: AppSettings())
+                       settings: AppSettings(defaults: .previewDefaults))
+            .themedPage()
     }
 }
 
 #Preview("Connection — advertising") {
     NavigationStack {
         ConnectionView(peripheral: StubHIDSender(connectionState: .advertising, knownCentrals: []),
-                       settings: AppSettings())
+                       settings: AppSettings(defaults: .previewDefaults))
+            .themedPage()
     }
 }

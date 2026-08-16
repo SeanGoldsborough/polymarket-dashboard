@@ -6,14 +6,9 @@
 //  user's data: the hand-written `RemoteAction` Codable conformance, and the
 //  store's on-disk document.
 //
-//  Note on the import: the app target sets PRODUCT_NAME to "Pocket Trackpad",
-//  and Xcode derives PRODUCT_MODULE_NAME from it as the C99 identifier form.
-//  If the project ever sets PRODUCT_MODULE_NAME explicitly, this import has to
-//  follow it.
-//
 
 import XCTest
-@testable import Pocket_Trackpad
+@testable import PocketTrackpad
 
 final class RemoteStoreTests: XCTestCase {
 

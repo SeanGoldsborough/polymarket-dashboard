@@ -16,11 +16,26 @@ import SwiftUI
 public struct GeneralSettingsView: View {
     @Bindable private var settings: AppSettings
 
+    /// Injected so Advanced can push Diagnostics. `DiagnosticsView` needs the
+    /// harness and the stub flag, neither of which this screen owns, and there
+    /// is no singleton to reach for — so the row appears only when the
+    /// composition root passes them down. `SettingsSheet` should call
+    /// `GeneralSettingsView(settings:diagnostics:isRadioStubbed:)` to light it
+    /// up; the parameterless form stays valid and simply omits the row.
+    private let diagnostics: HIDDiagnostics?
+    private let isRadioStubbed: Bool
+
     @State private var isAdvancedExpanded = false
     @FocusState private var isNameFieldFocused: Bool
 
-    public init(settings: AppSettings) {
+    public init(
+        settings: AppSettings,
+        diagnostics: HIDDiagnostics? = nil,
+        isRadioStubbed: Bool = false
+    ) {
         _settings = Bindable(settings)
+        self.diagnostics = diagnostics
+        self.isRadioStubbed = isRadioStubbed
     }
 
     public var body: some View {
@@ -28,7 +43,7 @@ public struct GeneralSettingsView: View {
             Section {
                 SensitivitySlider(
                     value: $settings.tracking,
-                    accessibilityLabel: "Tracking speed",
+                    title: "Tracking speed",
                     slowestHint: "Slower pointer",
                     fastestHint: "Faster pointer"
                 )
@@ -41,7 +56,7 @@ public struct GeneralSettingsView: View {
             Section {
                 SensitivitySlider(
                     value: $settings.motion,
-                    accessibilityLabel: "Motion acceleration",
+                    title: "Motion acceleration",
                     slowestHint: "Less acceleration",
                     fastestHint: "More acceleration"
                 )
@@ -54,7 +69,7 @@ public struct GeneralSettingsView: View {
             Section {
                 SensitivitySlider(
                     value: $settings.scrolling,
-                    accessibilityLabel: "Scrolling speed",
+                    title: "Scrolling speed",
                     slowestHint: "Slower scrolling",
                     fastestHint: "Faster scrolling"
                 )
@@ -140,12 +155,18 @@ public struct GeneralSettingsView: View {
                     }
                     .padding(.vertical, 4)
 
-                    NavigationLink {
-                        DiagnosticsView()
-                    } label: {
-                        Label("Diagnostics", systemImage: "stethoscope")
+                    if let diagnostics {
+                        NavigationLink {
+                            DiagnosticsView(
+                                diagnostics: diagnostics,
+                                settings: settings,
+                                isRadioStubbed: isRadioStubbed
+                            )
+                        } label: {
+                            Label("Diagnostics", systemImage: "stethoscope")
+                        }
+                        .accessibilityHint("Probes which Bluetooth report layout this Mac accepts")
                     }
-                    .accessibilityHint("Probes which Bluetooth report layout this Mac accepts")
                 } label: {
                     Label("Advanced", systemImage: "gearshape.2")
                         .accessibilityLabel("Advanced")
@@ -154,6 +175,8 @@ public struct GeneralSettingsView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Theme.pageBackground)
         .navigationTitle("General")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -183,7 +206,7 @@ private struct SectionHeader: View {
 /// sizes for no gain. The word is carried in the accessibility value instead.
 private struct SensitivitySlider: View {
     @Binding var value: Double
-    let accessibilityLabel: String
+    let title: String
     let slowestHint: String
     let fastestHint: String
 
@@ -201,7 +224,7 @@ private struct SensitivitySlider: View {
 
     private var slider: some View {
         Slider(value: $value, in: 0...1)
-            .accessibilityLabel(accessibilityLabel)
+            .accessibilityLabel(title)
             .accessibilityValue(descriptor)
             .accessibilityHint("Swipe up for \(fastestHint.lowercased()), down for \(slowestHint.lowercased()).")
     }

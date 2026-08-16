@@ -3,12 +3,12 @@
 //  PocketTrackpad
 //
 //  The modifier and utility rows that sit between the mouse buttons and the
-//  system keyboard: sticky modifiers, caps lock, secure-entry toggle, paste,
+//  system keyboard: sticky modifiers, caps lock, a secure-entry toggle, paste,
 //  and an Aa / Fn / ▶ switcher.
 //
 //  The latched modifier set lives on `KeyboardBridge`, which `HiddenKeyboardField`
-//  reads when it builds an outgoing report — this view never talks to the radio
-//  for ordinary keystrokes, it only changes what the next keystroke carries.
+//  reads when it builds an outgoing report. This view never sends an ordinary
+//  keystroke itself — it only changes what the next keystroke will carry.
 //
 
 import SwiftUI
@@ -33,7 +33,7 @@ enum KeyboardAccessoryMode: String, CaseIterable, Identifiable {
         }
     }
 
-    /// Spelled out for VoiceOver, where "Aa" and "▶" are useless.
+    /// Spelled out for VoiceOver, where "Aa" and "▶" carry nothing.
     var accessibilityTitle: String {
         switch self {
         case .letters:  return "Letters"
@@ -60,6 +60,26 @@ private struct ModifierKeySpec: Identifiable {
     ]
 }
 
+private struct FunctionKeySpec: Identifiable {
+    let number: Int
+    let usage: UInt8
+
+    var id: UInt8 { usage }
+
+    /// F1–F12 are contiguous in the HID table, but they are listed rather than
+    /// computed so the mapping stays greppable against `HIDKeyCode`.
+    static let all: [FunctionKeySpec] = {
+        let usages: [UInt8] = [
+            HIDKeyCode.f1, HIDKeyCode.f2, HIDKeyCode.f3, HIDKeyCode.f4,
+            HIDKeyCode.f5, HIDKeyCode.f6, HIDKeyCode.f7, HIDKeyCode.f8,
+            HIDKeyCode.f9, HIDKeyCode.f10, HIDKeyCode.f11, HIDKeyCode.f12
+        ]
+        return usages.enumerated().map {
+            FunctionKeySpec(number: $0.offset + 1, usage: $0.element)
+        }
+    }()
+}
+
 private struct MediaKeySpec: Identifiable {
     let usage: ConsumerUsage
     let symbol: String
@@ -68,15 +88,15 @@ private struct MediaKeySpec: Identifiable {
     var id: UInt16 { usage.rawValue }
 
     static let all: [MediaKeySpec] = [
-        MediaKeySpec(usage: .scanPrevious,     symbol: "backward.end.fill",  label: "Previous track"),
-        MediaKeySpec(usage: .playPause,        symbol: "playpause.fill",     label: "Play or pause"),
-        MediaKeySpec(usage: .scanNext,         symbol: "forward.end.fill",   label: "Next track"),
-        MediaKeySpec(usage: .mute,             symbol: "speaker.slash.fill", label: "Mute"),
+        MediaKeySpec(usage: .scanPrevious,     symbol: "backward.end.fill",   label: "Previous track"),
+        MediaKeySpec(usage: .playPause,        symbol: "playpause.fill",      label: "Play or pause"),
+        MediaKeySpec(usage: .scanNext,         symbol: "forward.end.fill",    label: "Next track"),
+        MediaKeySpec(usage: .mute,             symbol: "speaker.slash.fill",  label: "Mute"),
         MediaKeySpec(usage: .volumeDown,       symbol: "speaker.wave.1.fill", label: "Volume down"),
         MediaKeySpec(usage: .volumeUp,         symbol: "speaker.wave.3.fill", label: "Volume up"),
-        MediaKeySpec(usage: .brightnessDown,   symbol: "sun.min.fill",       label: "Brightness down"),
-        MediaKeySpec(usage: .brightnessUp,     symbol: "sun.max.fill",       label: "Brightness up"),
-        MediaKeySpec(usage: .acDesktopShowAll, symbol: "square.grid.2x2",    label: "Mission Control")
+        MediaKeySpec(usage: .brightnessDown,   symbol: "sun.min.fill",        label: "Brightness down"),
+        MediaKeySpec(usage: .brightnessUp,     symbol: "sun.max.fill",        label: "Brightness up"),
+        MediaKeySpec(usage: .acDesktopShowAll, symbol: "square.grid.2x2",     label: "Mission Control")
     ]
 }
 
@@ -89,26 +109,32 @@ private struct NavigationKeySpec: Identifiable {
     var id: UInt8 { usage }
 
     static let all: [NavigationKeySpec] = [
-        NavigationKeySpec(usage: TrackpadKeyUsage.escape,     symbol: nil, title: "esc", label: "Escape"),
-        NavigationKeySpec(usage: TrackpadKeyUsage.tab,        symbol: "arrow.right.to.line", title: nil, label: "Tab"),
-        NavigationKeySpec(usage: TrackpadKeyUsage.leftArrow,  symbol: "arrow.left",  title: nil, label: "Left arrow"),
-        NavigationKeySpec(usage: TrackpadKeyUsage.downArrow,  symbol: "arrow.down",  title: nil, label: "Down arrow"),
-        NavigationKeySpec(usage: TrackpadKeyUsage.upArrow,    symbol: "arrow.up",    title: nil, label: "Up arrow"),
-        NavigationKeySpec(usage: TrackpadKeyUsage.rightArrow, symbol: "arrow.right", title: nil, label: "Right arrow")
+        NavigationKeySpec(usage: HIDKeyCode.escape, symbol: nil,
+                          title: "esc", label: "Escape"),
+        NavigationKeySpec(usage: HIDKeyCode.tab, symbol: "arrow.right.to.line",
+                          title: nil, label: "Tab"),
+        NavigationKeySpec(usage: HIDKeyCode.leftArrow, symbol: "arrow.left",
+                          title: nil, label: "Left arrow"),
+        NavigationKeySpec(usage: HIDKeyCode.downArrow, symbol: "arrow.down",
+                          title: nil, label: "Down arrow"),
+        NavigationKeySpec(usage: HIDKeyCode.upArrow, symbol: "arrow.up",
+                          title: nil, label: "Up arrow"),
+        NavigationKeySpec(usage: HIDKeyCode.rightArrow, symbol: "arrow.right",
+                          title: nil, label: "Right arrow")
     ]
 }
 
 // MARK: - Key style
 
-/// Shared look for every key in the accessory: a white card that darkens on
-/// press and turns blue once latched.
+/// Shared look for every key in the accessory: a card that darkens on press and
+/// turns accent-blue once latched, with a ring while it is locked on.
 private struct AccessoryKeyStyle: ButtonStyle {
     var isLatched: Bool = false
     var isLocked: Bool = false
     var isEnabled: Bool = true
 
     private var shape: RoundedRectangle {
-        RoundedRectangle(cornerRadius: 9, style: .continuous)
+        RoundedRectangle(cornerRadius: Theme.controlCornerRadius, style: .continuous)
     }
 
     func makeBody(configuration: Configuration) -> some View {
@@ -117,13 +143,14 @@ private struct AccessoryKeyStyle: ButtonStyle {
             .lineLimit(1)
             .minimumScaleFactor(0.6)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
+            .padding(.vertical, 9)
             .frame(minHeight: 42)
-            .foregroundStyle(isLatched ? Color.white : Color.primary)
-            .background { shape.fill(fill(pressed: configuration.isPressed)) }
-            .overlay { shape.strokeBorder(isLocked ? Color.accentColor : Color.clear, lineWidth: 2) }
-            .shadow(color: .black.opacity(configuration.isPressed ? 0.03 : 0.10),
-                    radius: 1, x: 0, y: 1)
+            .foregroundStyle(isLatched ? Color.white : Theme.primaryText)
+            .background(fill(pressed: configuration.isPressed), in: shape)
+            .overlay {
+                shape.strokeBorder(isLocked ? Theme.accent : Theme.cardBorder,
+                                   lineWidth: isLocked ? 2 : 1)
+            }
             .opacity(isEnabled ? 1 : 0.4)
             .contentShape(shape)
             .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
@@ -132,11 +159,9 @@ private struct AccessoryKeyStyle: ButtonStyle {
 
     private func fill(pressed: Bool) -> Color {
         if isLatched {
-            return Color.accentColor.opacity(pressed ? 0.75 : 1)
+            return Theme.accent.opacity(pressed ? 0.75 : 1)
         }
-        return pressed
-            ? Color(.systemFill)
-            : Color(.secondarySystemGroupedBackground)
+        return pressed ? Theme.insetBackground : Theme.cardBackground
     }
 }
 
@@ -146,15 +171,13 @@ private struct AccessoryKeyStyle: ButtonStyle {
 @MainActor
 struct KeyboardAccessoryView: View {
 
-    @Bindable var bridge: KeyboardBridge
-    let settings: AppSettings
+    @Bindable private var bridge: KeyboardBridge
 
     @State private var mode: KeyboardAccessoryMode = .letters
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
-    init(bridge: KeyboardBridge, settings: AppSettings) {
-        self.bridge = bridge
-        self.settings = settings
+    init(bridge: KeyboardBridge) {
+        _bridge = Bindable(bridge)
     }
 
     var body: some View {
@@ -167,9 +190,6 @@ struct KeyboardAccessoryView: View {
                 pasteIndicator(progress)
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .background(Color(.systemGroupedBackground))
         .disabled(!bridge.isConnected)
     }
 
@@ -190,7 +210,7 @@ struct KeyboardAccessoryView: View {
                                                isEnabled: bridge.isConnected))
                 .accessibilityLabel(spec.title)
                 .accessibilityValue(accessibilityValue(for: state))
-                .accessibilityHint("Applies to the next key you type. Tap again to lock.")
+                .accessibilityHint("Applies to the next key you type. Tap again to lock it on.")
                 .accessibilityAddTraits(state != .off ? .isSelected : [])
             }
         }
@@ -214,7 +234,7 @@ struct KeyboardAccessoryView: View {
                 bridge.masksTypedText.toggle()
                 bridge.impact(.light)
             } label: {
-                Label(bridge.masksTypedText ? "hidden" : "visible",
+                Label(bridge.masksTypedText ? "hidden" : "shown",
                       systemImage: bridge.masksTypedText ? "eye.slash" : "eye")
                     .labelStyle(.keyLabel)
             }
@@ -222,19 +242,18 @@ struct KeyboardAccessoryView: View {
                                            isEnabled: bridge.isConnected))
             .accessibilityLabel("Hide what you type")
             .accessibilityValue(bridge.masksTypedText ? "On" : "Off")
-            .accessibilityHint("Turns off predictions and autocorrect for passwords.")
+            .accessibilityHint("Switches the capture field to secure entry, so iOS offers no predictions for a password.")
             .accessibilityAddTraits(bridge.masksTypedText ? .isSelected : [])
 
             Button {
                 bridge.pasteClipboard()
-                bridge.impact(.medium)
             } label: {
                 Label("paste", systemImage: "doc.on.clipboard")
                     .labelStyle(.keyLabel)
             }
             .buttonStyle(AccessoryKeyStyle(isEnabled: bridge.isConnected))
             .accessibilityLabel("Paste clipboard")
-            .accessibilityHint("Types the contents of this iPhone's clipboard on the Mac.")
+            .accessibilityHint("Types this iPhone's clipboard out on the Mac, one key at a time.")
         }
     }
 
@@ -259,6 +278,8 @@ struct KeyboardAccessoryView: View {
         }
     }
 
+    /// Shown alongside the system letter keyboard: the keys iOS has no way to
+    /// send us as text.
     private var navigationStrip: some View {
         HStack(spacing: 6) {
             ForEach(NavigationKeySpec.all) { spec in
@@ -279,23 +300,22 @@ struct KeyboardAccessoryView: View {
     }
 
     private var functionKeys: some View {
-        LazyVGrid(columns: functionColumns, spacing: 6) {
-            ForEach(1...12, id: \.self) { number in
+        LazyVGrid(columns: columns(compact: 6), spacing: 6) {
+            ForEach(FunctionKeySpec.all) { spec in
                 Button {
-                    guard let usage = TrackpadKeyUsage.function(number) else { return }
-                    bridge.send(usage: usage)
+                    bridge.send(usage: spec.usage)
                     bridge.impact(.light)
                 } label: {
-                    Text(verbatim: "F\(number)")
+                    Text(verbatim: "F\(spec.number)")
                 }
                 .buttonStyle(AccessoryKeyStyle(isEnabled: bridge.isConnected))
-                .accessibilityLabel("Function \(number)")
+                .accessibilityLabel("Function \(spec.number)")
             }
         }
     }
 
     private var mediaStrip: some View {
-        LazyVGrid(columns: mediaColumns, spacing: 6) {
+        LazyVGrid(columns: columns(compact: 5), spacing: 6) {
             ForEach(MediaKeySpec.all) { spec in
                 Button {
                     bridge.tapConsumer(spec.usage)
@@ -309,11 +329,13 @@ struct KeyboardAccessoryView: View {
     }
 
     private func pasteIndicator(_ progress: Double) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
             ProgressView(value: progress)
                 .progressViewStyle(.linear)
+                .tint(Theme.accent)
             Button("Stop") { bridge.cancelTyping() }
                 .font(.footnote.weight(.semibold))
+                .foregroundStyle(Theme.accent)
         }
         .padding(.horizontal, 2)
         .accessibilityElement(children: .combine)
@@ -323,16 +345,11 @@ struct KeyboardAccessoryView: View {
 
     // MARK: Layout helpers
 
-    /// Six across normally; three across once the user has asked for large
-    /// text, so "F10" never has to shrink to fit.
-    private var functionColumns: [GridItem] {
-        let count = dynamicTypeSize >= .accessibility1 ? 3 : 6
-        return Array(repeating: GridItem(.flexible(), spacing: 6), count: count)
-    }
-
-    private var mediaColumns: [GridItem] {
-        let count = dynamicTypeSize >= .accessibility1 ? 3 : 5
-        return Array(repeating: GridItem(.flexible(), spacing: 6), count: count)
+    /// Narrow the grid once the user has asked for large text, so a key never
+    /// has to shrink its label to fit.
+    private func columns(compact count: Int) -> [GridItem] {
+        let resolved = dynamicTypeSize >= .accessibility1 ? 3 : count
+        return Array(repeating: GridItem(.flexible(), spacing: 6), count: resolved)
     }
 
     private func accessibilityValue(for state: KeyboardBridge.LatchState) -> String {
@@ -372,15 +389,18 @@ private struct KeyboardAccessoryHarness: View {
         let sender = StubHIDSender(
             connectionState: connected ? .connected(centralName: "Sean's Mac mini") : .idle
         )
-        _bridge = State(initialValue: KeyboardBridge(sender: sender, settings: AppSettings()))
+        _bridge = State(initialValue: KeyboardBridge(sender: sender,
+                                                     settings: AppSettings(defaults: .previewDefaults)))
     }
 
     var body: some View {
         VStack {
             Spacer()
-            KeyboardAccessoryView(bridge: bridge, settings: AppSettings())
+            KeyboardAccessoryView(bridge: bridge)
+                .padding(.horizontal, 12)
+                .padding(.bottom, 8)
         }
-        .background(Color(.systemGroupedBackground))
+        .themedPage()
     }
 }
 
@@ -390,4 +410,9 @@ private struct KeyboardAccessoryHarness: View {
 
 #Preview("Accessory — offline") {
     KeyboardAccessoryHarness(connected: false)
+}
+
+#Preview("Accessory — large text") {
+    KeyboardAccessoryHarness(connected: true)
+        .environment(\.dynamicTypeSize, .accessibility2)
 }

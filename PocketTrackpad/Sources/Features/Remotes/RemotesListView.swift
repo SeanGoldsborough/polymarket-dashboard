@@ -55,7 +55,7 @@ public struct RemotesListView: View {
                         }
                     } icon: {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Theme.warning)
                     }
                     .accessibilityElement(children: .combine)
                 }
@@ -158,6 +158,8 @@ public struct RemotesListView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Theme.pageBackground)
         .navigationTitle("Remotes")
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {

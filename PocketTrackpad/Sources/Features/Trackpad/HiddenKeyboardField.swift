@@ -4,55 +4,29 @@
 //
 //  Capturing real typing and turning it into HID keyboard reports.
 //
-//  ASSUMED SIBLING API
-//  -------------------
-//      enum HIDKeyCode {
-//          static func keystrokes(for character: Character) -> (usage: UInt8, modifiers: KeyModifiers)?
-//          static func keystrokes(for string: String) -> [(UInt8, KeyModifiers)]
-//      }
-//
-//  Everything else in this file is local.
+//  Usages come from the sibling-owned `HIDKeyCode` (Sources/HID) — both the
+//  named constants and `keystrokes(for:)`. Nothing here re-derives a keycode.
 //
 
 import SwiftUI
 import UIKit
 import Observation
 
-// MARK: - Raw usage codes
+// MARK: - Modifier translation
 
-/// HID Keyboard/Keypad usage page (0x07) codes this feature needs by number.
-///
-/// `HIDKeyCode` maps *characters*; several keys we drive have no character at
-/// all (backspace, the arrows, F1–F12), so those usages live here. Named
-/// distinctly so it can never collide with the sibling-owned `HIDKeyCode`.
-enum TrackpadKeyUsage {
-    static let returnOrEnter: UInt8 = 0x28
-    static let escape: UInt8        = 0x29
-    static let deleteBackward: UInt8 = 0x2A
-    static let tab: UInt8           = 0x2B
-    static let spacebar: UInt8      = 0x2C
-    static let capsLock: UInt8      = 0x39
-
-    static let rightArrow: UInt8 = 0x4F
-    static let leftArrow: UInt8  = 0x50
-    static let downArrow: UInt8  = 0x51
-    static let upArrow: UInt8    = 0x52
-
-    /// F1 is 0x3A and the function keys run contiguously through F12 at 0x45.
-    static func function(_ number: Int) -> UInt8? {
-        guard (1...12).contains(number) else { return nil }
-        return UInt8(0x3A + number - 1)
-    }
-
-    /// Translate UIKit's modifier flags into HID modifier bits. UIKit does not
-    /// distinguish left from right, so everything maps to the left-hand bit.
-    static func hidModifiers(from flags: UIKeyModifierFlags) -> KeyModifiers {
+extension KeyModifiers {
+    /// Translate UIKit's modifier flags into HID modifier bits.
+    ///
+    /// UIKit does not distinguish left from right — `.shift` is set for either
+    /// physical key — so everything maps to the left-hand bit. Hosts treat the
+    /// two as equivalent for every shortcut that matters here.
+    init(_ flags: UIKeyModifierFlags) {
         var modifiers: KeyModifiers = []
         if flags.contains(.shift)     { modifiers.insert(.leftShift) }
         if flags.contains(.control)   { modifiers.insert(.leftControl) }
         if flags.contains(.alternate) { modifiers.insert(.leftOption) }
         if flags.contains(.command)   { modifiers.insert(.leftCommand) }
-        return modifiers
+        self = modifiers
     }
 }
 
@@ -77,7 +51,7 @@ public final class KeyboardBridge {
         case locked
     }
 
-    @ObservationIgnored private let sender: HIDSending
+    @ObservationIgnored private let sender: any HIDSending
     @ObservationIgnored private let settings: AppSettings
 
     /// Per-modifier latch state, keyed by raw value so it stays `Hashable`.
@@ -109,7 +83,7 @@ public final class KeyboardBridge {
     /// hold the keyboard hostage for an hour.
     @ObservationIgnored private let pasteCharacterLimit = 2_000
 
-    public init(sender: HIDSending, settings: AppSettings) {
+    public init(sender: any HIDSending, settings: AppSettings) {
         self.sender = sender
         self.settings = settings
     }
@@ -181,9 +155,9 @@ public final class KeyboardBridge {
         for character in text {
             switch character {
             case "\n", "\r":
-                send(usage: TrackpadKeyUsage.returnOrEnter)
+                send(usage: HIDKeyCode.`return`)
             case "\t":
-                send(usage: TrackpadKeyUsage.tab)
+                send(usage: HIDKeyCode.tab)
             default:
                 sendCharacter(character)
             }
@@ -199,7 +173,7 @@ public final class KeyboardBridge {
     public func toggleCapsLock() {
         guard isConnected else { return }
         isCapsLockEngaged.toggle()
-        sender.tap(key: TrackpadKeyUsage.capsLock, modifiers: [])
+        sender.tap(key: HIDKeyCode.capsLock, modifiers: [])
         impact(.medium)
     }
 
@@ -209,6 +183,7 @@ public final class KeyboardBridge {
     public func pasteClipboard() {
         guard isConnected else { return }
         guard let clipboard = UIPasteboard.general.string, !clipboard.isEmpty else { return }
+        impact(.medium)
         typeSlowly(String(clipboard.prefix(pasteCharacterLimit)))
     }
 
@@ -455,7 +430,7 @@ final class HIDKeyCaptureField: UITextField {
             // `UIKeyboardHIDUsage` raw values ARE HID usage IDs on page 0x07,
             // so no translation table is needed here.
             let usage = UInt8(clamping: key.keyCode.rawValue)
-            sink(usage, TrackpadKeyUsage.hidModifiers(from: key.modifierFlags))
+            sink(usage, KeyModifiers(key.modifierFlags))
         }
         return unhandled
     }
@@ -554,9 +529,9 @@ struct HiddenKeyboardField: UIViewRepresentable {
             for character in text {
                 switch character {
                 case "\n", "\r":
-                    bridge.send(usage: TrackpadKeyUsage.returnOrEnter)
+                    bridge.send(usage: HIDKeyCode.`return`)
                 case "\t":
-                    bridge.send(usage: TrackpadKeyUsage.tab)
+                    bridge.send(usage: HIDKeyCode.tab)
                 default:
                     bridge.sendCharacter(character)
                 }
@@ -564,7 +539,7 @@ struct HiddenKeyboardField: UIViewRepresentable {
         }
 
         func handleDelete() {
-            bridge.send(usage: TrackpadKeyUsage.deleteBackward)
+            bridge.send(usage: HIDKeyCode.delete)
         }
 
         func handleHardwareDown(_ usage: UInt8, _ modifiers: KeyModifiers) {
@@ -605,20 +580,23 @@ private struct HiddenKeyboardFieldHarness: View {
     init() {
         let sender = StubHIDSender()
         self.stub = sender
-        _bridge = State(initialValue: KeyboardBridge(sender: sender, settings: AppSettings()))
+        _bridge = State(initialValue: KeyboardBridge(sender: sender,
+                                                     settings: AppSettings(defaults: .previewDefaults)))
     }
 
     var body: some View {
         VStack(spacing: 16) {
             Text("Type on the system keyboard — every keystroke becomes a HID report.")
                 .font(.callout)
+                .foregroundStyle(Theme.primaryText)
                 .multilineTextAlignment(.center)
 
             Toggle("Keyboard raised", isOn: $isActive)
+                .tint(Theme.accent)
 
             Text(verbatim: "\(stub.sentKeyboard.count) keyboard reports sent")
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.secondaryText)
 
             HiddenKeyboardField(bridge: bridge, isActive: $isActive)
                 .frame(width: 1, height: 1)
@@ -627,7 +605,7 @@ private struct HiddenKeyboardFieldHarness: View {
             Spacer()
         }
         .padding()
-        .background(Color(.systemGroupedBackground))
+        .themedPage()
     }
 }
 
