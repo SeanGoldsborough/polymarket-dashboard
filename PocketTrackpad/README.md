@@ -97,6 +97,30 @@ hands you a shareable plain-text report. That output is the go/no-go for the
 product. If all three fail, the product shape changes and no amount of UI
 polish rescues it.
 
+### Test without Xcode
+
+The bit-level half of this codebase does not need an iPhone, a simulator, or a
+provisioning profile. CoreBluetooth ships on macOS as well as iOS, so the
+report descriptor, encoders, keycode tables, peripheral manager, report pump,
+bond store and input math all build as a plain library:
+
+```
+cd PocketTrackpad
+swift test
+```
+
+That covers the report map, report pump, and pointer/scroll/gesture engines —
+which is where the expensive bugs are. A wrong bit count in the descriptor, a
+dropped key-up that sticks a modifier down on the host, truncated sub-pixel
+residue that ruins slow pointing: none of those need a radio to catch, and all
+of them are miserable to diagnose on device. Run this before the first Xcode
+build, because its failures are far cheaper to read.
+
+Everything under `Sources/App` and `Sources/Features` is excluded — those are
+SwiftUI screens built on UIKit types with no macOS equivalent, so they compile
+only in the Xcode target, and `RemoteStoreTests`/`HIDDiagnosticsTests` are
+excluded with them.
+
 ---
 
 ## Architecture

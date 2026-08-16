@@ -39,7 +39,13 @@ targets:
         PRODUCT_NAME: Pocket Trackpad
         INFOPLIST_FILE: Resources/Info.plist
         # The ObjC exception-catching shim is reached through this header.
-        SWIFT_OBJC_BRIDGING_HEADER: Sources/ObjCShim/include/PocketTrackpad-Bridging-Header.h
+        #
+        # It lives in Support/ rather than Sources/ObjCShim/include/ because
+        # SwiftPM treats that include directory as the umbrella for the
+        # PTExceptionCatcher module, and a bridging header sitting inside it
+        # would be pulled into the module it is supposed to import.
+        SWIFT_OBJC_BRIDGING_HEADER: Support/PocketTrackpad-Bridging-Header.h
+        HEADER_SEARCH_PATHS: $(SRCROOT)/Sources/ObjCShim/include
         TARGETED_DEVICE_FAMILY: "1,2"
         CODE_SIGN_STYLE: Automatic
         # Peripheral-mode Bluetooth needs a real device; the Simulator stubs it.

@@ -44,9 +44,19 @@ import Observation
 import UIKit
 #endif
 
-// If PTExceptionCatcher is built as its own SwiftPM target rather than reached
-// through the app target's bridging header, uncomment the import:
-// import ObjCShim
+// The shim is reached two different ways depending on the build system, and
+// this conditional makes both work without an edit:
+//
+//   * Xcode / XcodeGen — the app target sets SWIFT_OBJC_BRIDGING_HEADER, which
+//     imports PTExceptionCatcher.h into every Swift file implicitly. There is
+//     no module to import, so `canImport` is false and this compiles to
+//     nothing.
+//   * SwiftPM — PTExceptionCatcher is a real C target with its own module, so
+//     `canImport` is true and the import is required. SwiftPM does not support
+//     bridging headers at all, which is why the module form has to exist.
+#if canImport(PTExceptionCatcher)
+import PTExceptionCatcher
+#endif
 
 @MainActor
 @Observable
