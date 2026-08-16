@@ -1,0 +1,100 @@
+# XcodeGen spec — generate the project with:
+#   brew install xcodegen && cd PocketTrackpad && xcodegen generate
+#
+# The .xcodeproj is deliberately NOT committed. It is a generated artefact and
+# a merge-conflict magnet; this file is the source of truth for the target
+# layout, capabilities and build settings.
+
+name: PocketTrackpad
+options:
+  bundleIdPrefix: com.seangoldsborough
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    SWIFT_STRICT_CONCURRENCY: complete
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    DEAD_CODE_STRIPPING: YES
+    CLANG_ENABLE_MODULES: YES
+    # Warnings we actually want to fail on, given nobody can compile this in CI
+    # until it reaches a Mac.
+    GCC_TREAT_WARNINGS_AS_ERRORS: NO
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: NO
+
+targets:
+  PocketTrackpad:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+        excludes:
+          - "**/.DS_Store"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.seangoldsborough.pockettrackpad
+        PRODUCT_NAME: Pocket Trackpad
+        INFOPLIST_FILE: Resources/Info.plist
+        # The ObjC exception-catching shim is reached through this header.
+        SWIFT_OBJC_BRIDGING_HEADER: Sources/ObjCShim/include/PocketTrackpad-Bridging-Header.h
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGN_STYLE: Automatic
+        # Peripheral-mode Bluetooth needs a real device; the Simulator stubs it.
+        SUPPORTS_MACCATALYST: NO
+    entitlements:
+      path: Resources/PocketTrackpad.entitlements
+      properties: {}
+    info:
+      path: Resources/Info.plist
+      properties:
+        CFBundleDisplayName: Pocket Trackpad
+        CFBundleShortVersionString: "1.0.0"
+        CFBundleVersion: "1"
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UIRequiredDeviceCapabilities:
+          - armv7
+          - bluetooth-le
+        # Required or the app is killed on first CBPeripheralManager use.
+        NSBluetoothAlwaysUsageDescription: >-
+          Pocket Trackpad presents this iPhone to your Mac as a Bluetooth
+          keyboard and trackpad. Bluetooth access is required to pair and to
+          send your taps and keystrokes.
+        NSBluetoothPeripheralUsageDescription: >-
+          Pocket Trackpad advertises this iPhone as a Bluetooth input device so
+          your Mac can pair with it.
+        # Peripheral background mode. Note this does NOT make backgrounded
+        # advertising reliably discoverable: iOS moves service UUIDs into the
+        # advertisement overflow area when backgrounded, and macOS generally
+        # will not surface the device in its Bluetooth list from there. The
+        # mode keeps an ALREADY-CONNECTED session alive, which is the part
+        # that actually matters.
+        UIBackgroundModes:
+          - bluetooth-peripheral
+        ITSAppUsesNonExemptEncryption: false
+
+  PocketTrackpadTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - Tests
+    dependencies:
+      - target: PocketTrackpad
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.seangoldsborough.pockettrackpad.tests
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  PocketTrackpad:
+    build:
+      targets:
+        PocketTrackpad: all
+    test:
+      targets:
+        - PocketTrackpadTests
+      gatherCoverageData: true

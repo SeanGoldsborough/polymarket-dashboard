@@ -1,2 +1,11 @@
 *.pyc
 .env
+
+# Xcode / iOS
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+DerivedData/
+build/
+*.xcuserstate
+.DS_Store

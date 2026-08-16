@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  No special entitlements are required to act as a BLE peripheral. This
+	  file exists so the capability set is explicit and reviewable rather than
+	  implicit in Xcode's UI.
+
+	  Note in particular that there is NO entitlement that grants permission to
+	  publish the HID service (0x1812). iOS's refusal of the short-form UUID is
+	  a hardcoded denylist check, not a capability gate — which is exactly why
+	  the 128-bit workaround is undocumented and unsupported.
+	-->
+	<key>com.apple.developer.kernel.increased-memory-limit</key>
+	<false/>
+</dict>
+</plist>
