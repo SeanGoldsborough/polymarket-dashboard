@@ -54,6 +54,10 @@ public enum GestureEvent: Equatable, Sendable {
     case swipe(Direction)
 }
 
+/// Convenience spelling for `GestureEvent.Direction` so call sites can say
+/// `func perform(swipe direction: Direction)`.
+public typealias Direction = GestureEvent.Direction
+
 // MARK: - Tuning
 
 /// Named thresholds for touch classification. These are the numbers that
@@ -166,6 +170,15 @@ public final class GestureState {
     public let scroll: ScrollEngine
     public var tuning: GestureTuning
 
+    /// Optional push-style delivery.
+    ///
+    /// Every event returned by `touchesBegan`, `touchesMoved`, `touchesEnded`,
+    /// `tick(now:)`, `reset()` and `momentumTick()` is ALSO handed to this
+    /// closure, in the same order. Pull and push always agree, so a UI layer
+    /// can wire itself up once and ignore the return values, or ignore this
+    /// and use the return values — never both for the same event.
+    public var onEvent: ((GestureEvent) -> Void)?
+
     public private(set) var phase: Phase = .idle
 
     /// Where and when the current gesture started (after any promotion).
@@ -210,6 +223,10 @@ public final class GestureState {
     ///   can never be left with a stuck mouse button (e.g. on disconnect).
     @discardableResult
     public func reset() -> [GestureEvent] {
+        publish(resettingEvents())
+    }
+
+    private func resettingEvents() -> [GestureEvent] {
         var events: [GestureEvent] = []
         if buttonIsDown {
             events.append(.button(.left, down: false))
@@ -229,7 +246,12 @@ public final class GestureState {
 
     // MARK: Touch input
 
+    @discardableResult
     public func touchesBegan(count: Int, at point: CGPoint, time: TimeInterval) -> [GestureEvent] {
+        publish(began(count: count, at: point, time: time))
+    }
+
+    private func began(count: Int, at point: CGPoint, time: TimeInterval) -> [GestureEvent] {
         guard count > 0 else { return [] }
 
         switch phase {
@@ -256,7 +278,20 @@ public final class GestureState {
         }
     }
 
+    @discardableResult
     public func touchesMoved(count: Int, at point: CGPoint, time: TimeInterval) -> [GestureEvent] {
+        publish(moved(count: count, at: point, time: time))
+    }
+
+    private func moved(count: Int, at point: CGPoint, time: TimeInterval) -> [GestureEvent] {
+        // Defensive resync: UIKit always delivers `touchesBegan` first, but if a
+        // count change ever arrives on a move we must not feed a two-finger
+        // centroid into the pointer engine — that reads as a violent jump.
+        if count >= 2, phase == .pointer || phase == .dragCandidate, shouldPromoteToMultiTouch(at: time) {
+            pointer.end()
+            _ = startGesture(count: count, at: point, time: time)
+        }
+
         // Long press is judged on where the finger was BEFORE this movement:
         // holding still for 600 ms and then dragging is a drag lock, not a
         // cancelled long press.
@@ -314,7 +349,12 @@ public final class GestureState {
         }
     }
 
+    @discardableResult
     public func touchesEnded(count: Int, at point: CGPoint, time: TimeInterval) -> [GestureEvent] {
+        publish(ended(count: count, at: point, time: time))
+    }
+
+    private func ended(count: Int, at point: CGPoint, time: TimeInterval) -> [GestureEvent] {
         var events: [GestureEvent] = []
         let withinTapWindow = (time - startTime) <= tuning.tapMaximumDuration
 
@@ -379,10 +419,11 @@ public final class GestureState {
     /// Drive time-based transitions. Call this from the same display link that
     /// pumps reports; without it a long press can only be detected on the next
     /// finger movement.
+    @discardableResult
     public func tick(now: TimeInterval) -> [GestureEvent] {
         switch phase {
         case .pointer, .dragCandidate:
-            return fireLongPressIfDue(at: now)
+            return publish(fireLongPressIfDue(at: now))
         default:
             return []
         }
@@ -393,12 +434,23 @@ public final class GestureState {
     /// pumping until you get nil.
     public func momentumTick() -> GestureEvent? {
         guard let delta = scroll.momentumTick() else { return nil }
-        return .scroll(wheel: delta.wheel, pan: delta.pan)
+        let event = GestureEvent.scroll(wheel: delta.wheel, pan: delta.pan)
+        publish([event])
+        return event
     }
 
     public var isMomentumActive: Bool { scroll.isMomentumActive }
 
     // MARK: Private
+
+    /// Fan every emitted event out to `onEvent`, then hand the same list back
+    /// to the caller.
+    @discardableResult
+    private func publish(_ events: [GestureEvent]) -> [GestureEvent] {
+        guard let callback = onEvent, !events.isEmpty else { return events }
+        for event in events { callback(event) }
+        return events
+    }
 
     private func startGesture(count: Int, at point: CGPoint, time: TimeInterval) -> [GestureEvent] {
         startPoint = point

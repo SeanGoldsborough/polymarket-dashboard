@@ -30,6 +30,11 @@ public final class AppRuntime {
 
     public let settings: AppSettings
 
+    /// The remote library. Owned here rather than by `RemotesListView` so that
+    /// the JSON document is read once per launch and the same instance backs
+    /// every presentation of the Remotes tab.
+    public let remotes: RemoteStore
+
     /// True when `sender` is a `StubHIDSender` rather than the real radio.
     /// Surfaced in the UI as a badge — see `StubbedRadioBadge`.
     public let isRadioStubbed: Bool
@@ -44,8 +49,17 @@ public final class AppRuntime {
     /// whether it is responsible for bringing it back.
     @ObservationIgnored private var shouldResumeOnForeground = false
 
-    public init(settings: AppSettings = .shared) {
+    /// `settings` is required rather than defaulted to `AppSettings.shared`:
+    /// a default argument expression is evaluated in a nonisolated context in
+    /// Swift 5.9, so `= .shared` on a `@MainActor` type does not compile.
+    /// Callers pass `.shared` explicitly; previews and tests pass a throwaway.
+    public init(settings: AppSettings) {
         self.settings = settings
+        // Built here rather than accepted as a defaulted parameter: a default
+        // argument expression is nonisolated in Swift 5.9, and `RemoteStore` is
+        // `@MainActor`, so `= RemoteStore()` in the signature would not compile
+        // under strict concurrency.
+        self.remotes = RemoteStore()
 
         #if targetEnvironment(simulator)
         // CoreBluetooth's *peripheral* role does not function in the Simulator.
@@ -151,18 +165,20 @@ struct PocketTrackpadApp: App {
         // is `@MainActor`. `assumeIsolated` states that fact to the compiler
         // instead of leaving it to the Swift 5 mode's permissiveness, so this
         // keeps compiling unchanged under strict concurrency.
-        _runtime = State(initialValue: MainActor.assumeIsolated { AppRuntime() })
+        _runtime = State(initialValue: MainActor.assumeIsolated { AppRuntime(settings: .shared) })
     }
 
     var body: some Scene {
         WindowGroup {
             RootView(runtime: runtime)
                 .preferredColorScheme(runtime.settings.appearance.colorScheme)
-                .onAppear {
-                    // The Simulator stub has nothing to advertise, but starting
-                    // it anyway keeps the state machine identical on both paths.
-                    runtime.startRadio()
-                }
+                // Deliberately no auto-start on launch. `HIDPeripheralManager`
+                // already brings CoreBluetooth up in `init` so the Connection
+                // tab can show the radio's true state, but *advertising* is a
+                // user decision made with the "Add Device" button — going on
+                // the air unasked drains the battery and makes the Connection
+                // tab's toggle read "Stop advertising" before the user has done
+                // anything.
                 .onChange(of: scenePhase) { _, newPhase in
                     switch newPhase {
                     case .background:

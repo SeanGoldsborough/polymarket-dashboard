@@ -14,6 +14,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+@MainActor
 public struct RemotesListView: View {
     private let store: RemoteStore
     private let sender: any HIDSending
@@ -187,9 +188,9 @@ public struct RemotesListView: View {
         .sheet(item: $editorTarget) { target in
             switch target {
             case .create:
-                RemoteEditorView(remote: store.makeDraft(), store: store)
+                RemoteEditorView(remote: store.makeDraft(), store: store, isNew: true)
             case .edit(let remote):
-                RemoteEditorView(remote: remote, store: store)
+                RemoteEditorView(remote: remote, store: store, isNew: false)
             }
         }
         .fileImporter(

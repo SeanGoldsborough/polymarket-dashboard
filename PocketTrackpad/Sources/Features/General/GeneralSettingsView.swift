@@ -12,6 +12,7 @@
 
 import SwiftUI
 
+@MainActor
 public struct GeneralSettingsView: View {
     @Bindable private var settings: AppSettings
 

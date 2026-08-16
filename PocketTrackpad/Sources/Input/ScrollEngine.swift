@@ -261,14 +261,21 @@ public final class ScrollEngine {
         previous = nil
 
         let speed = (velocityX * velocityX + velocityY * velocityY).squareRoot()
+        // Consume the velocity estimate: a second `end()` must not relaunch the
+        // same throw.
+        let releaseX = velocityX
+        let releaseY = velocityY
+        velocityX = 0
+        velocityY = 0
+
         guard speed.isFinite, speed >= tuning.momentumLaunchSpeed else {
             stopMomentum()
             return
         }
         // Scale (never amplify) the launch velocity down to the ceiling.
         let scale = speed > tuning.momentumSpeedCeiling ? tuning.momentumSpeedCeiling / speed : 1.0
-        momentumVX = velocityX * scale
-        momentumVY = velocityY * scale
+        momentumVX = releaseX * scale
+        momentumVY = releaseY * scale
         momentumTicksElapsed = 0
         momentumRunning = true
     }

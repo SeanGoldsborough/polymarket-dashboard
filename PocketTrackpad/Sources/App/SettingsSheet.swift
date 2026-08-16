@@ -13,6 +13,7 @@
 
 import SwiftUI
 
+@MainActor
 public struct SettingsSheet: View {
 
     /// The four tabs, in the order they appear in the tab bar.
@@ -60,13 +61,17 @@ public struct SettingsSheet: View {
         NavigationStack {
             TabView(selection: $selection) {
                 tabContent(.connection) {
-                    ConnectionView(sender: runtime.sender)
+                    ConnectionView(peripheral: runtime.sender, settings: runtime.settings)
                 }
                 tabContent(.general) {
                     GeneralSettingsView(settings: runtime.settings)
                 }
                 tabContent(.remotes) {
-                    RemotesListView(sender: runtime.sender)
+                    RemotesListView(
+                        store: runtime.remotes,
+                        sender: runtime.sender,
+                        settings: runtime.settings
+                    )
                 }
                 tabContent(.about) {
                     AboutView()

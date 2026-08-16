@@ -99,7 +99,7 @@ final class PointerEngineTests: XCTestCase {
         for i in 1...100 {
             samples.append(
                 TouchSample(
-                    location: CGPoint(x: 0.3 * Double(i), y: -0.45 * Double(i)),
+                    location: CGPoint(x: 0.3 * Double(i), y: -0.5 * Double(i)),
                     timestamp: Double(i) / 120.0
                 )
             )
@@ -108,7 +108,7 @@ final class PointerEngineTests: XCTestCase {
         let gain = PointerTuning.default.baseGain(for: 0.5)
 
         XCTAssertEqual(Double(totalX(reports)), 30.0 * gain, accuracy: 1.0)
-        XCTAssertEqual(Double(totalY(reports)), -45.0 * gain, accuracy: 1.0)
+        XCTAssertEqual(Double(totalY(reports)), -50.0 * gain, accuracy: 1.0)
     }
 
     func testBeginClearsResidue() {

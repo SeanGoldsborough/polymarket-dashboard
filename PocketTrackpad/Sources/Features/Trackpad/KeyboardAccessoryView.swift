@@ -120,8 +120,8 @@ private struct AccessoryKeyStyle: ButtonStyle {
             .padding(.vertical, 10)
             .frame(minHeight: 42)
             .foregroundStyle(isLatched ? Color.white : Color.primary)
-            .background(shape.fill(fill(pressed: configuration.isPressed)))
-            .overlay(shape.strokeBorder(isLocked ? Color.accentColor : Color.clear, lineWidth: 2))
+            .background { shape.fill(fill(pressed: configuration.isPressed)) }
+            .overlay { shape.strokeBorder(isLocked ? Color.accentColor : Color.clear, lineWidth: 2) }
             .shadow(color: .black.opacity(configuration.isPressed ? 0.03 : 0.10),
                     radius: 1, x: 0, y: 1)
             .opacity(isEnabled ? 1 : 0.4)

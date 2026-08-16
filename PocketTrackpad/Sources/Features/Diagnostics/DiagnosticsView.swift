@@ -13,6 +13,7 @@
 
 import SwiftUI
 
+@MainActor
 public struct DiagnosticsView: View {
 
     private let diagnostics: HIDDiagnostics
@@ -200,16 +201,16 @@ public struct DiagnosticsView: View {
     private var resultRows: some View {
         CardSection("Results", contentPadding: 0) {
             VStack(spacing: 0) {
-                ForEach(Array(ReportTopology.allCases.enumerated()), id: \.element) { index, topology in
-                    if index > 0 {
+                ForEach(Array(ReportTopology.allCases.enumerated()), id: \.element) { pair in
+                    if pair.offset > 0 {
                         Divider().overlay(Theme.separator).padding(.leading, 16)
                     }
                     ResultRow(
-                        topology: topology,
-                        state: diagnostics.state(for: topology),
-                        result: diagnostics.result(for: topology),
-                        isAdopted: settings.preferredTopology == topology,
-                        onAdopt: { pendingAdoption = topology }
+                        topology: pair.element,
+                        state: diagnostics.state(for: pair.element),
+                        result: diagnostics.result(for: pair.element),
+                        isAdopted: settings.preferredTopology == pair.element,
+                        onAdopt: { pendingAdoption = pair.element }
                     )
                     .padding(16)
                 }
@@ -265,6 +266,7 @@ public struct DiagnosticsView: View {
 
 // MARK: - Result row
 
+@MainActor
 private struct ResultRow: View {
     let topology: ReportTopology
     let state: HIDDiagnostics.ProbeState
@@ -319,8 +321,8 @@ private struct ResultRow: View {
             if let notes = result?.notes, !notes.isEmpty {
                 DisclosureGroup {
                     VStack(alignment: .leading, spacing: 6) {
-                        ForEach(Array(notes.enumerated()), id: \.offset) { _, note in
-                            Text("• \(note)")
+                        ForEach(Array(notes.enumerated()), id: \.offset) { pair in
+                            Text("• \(pair.element)")
                                 .font(.caption)
                                 .foregroundStyle(Theme.secondaryText)
                                 .fixedSize(horizontal: false, vertical: true)
@@ -422,10 +424,13 @@ private struct ResultRow: View {
 
 // MARK: - Log line
 
+@MainActor
 private struct LogLine: View {
     let entry: HIDLogEntry
 
-    private static let formatter: DateFormatter = {
+    /// Explicitly main-actor isolated: `DateFormatter` is not `Sendable`, and
+    /// this is only ever touched from `body`.
+    @MainActor private static let formatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm:ss.SSS"
         formatter.locale = Locale(identifier: "en_US_POSIX")

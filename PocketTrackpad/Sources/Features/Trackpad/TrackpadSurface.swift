@@ -87,7 +87,9 @@ final class TouchCaptureView: UIView {
         // Without this, UIKit delivers only the first touch and every
         // multi-finger gesture silently degrades to a single-finger one.
         isMultipleTouchEnabled = true
-        isExclusiveTouch = true
+        // NOT exclusive: holding the left-click button while dragging here is
+        // how you drag a window, so the button row must keep getting touches.
+        isExclusiveTouch = false
         isOpaque = false
         backgroundColor = .clear
         // Touch delivery must not wait on anything above us.
@@ -189,12 +191,13 @@ struct TrackpadSurface: UIViewRepresentable {
     /// disable input while the link is down.
     var isEnabled: Bool
 
-    /// Every event the state machine emits.
-    var onEvent: (GestureEvent) -> Void
+    /// Every event the state machine emits. Main-actor isolated: it lands
+    /// straight on `HIDSending`, which is `@MainActor`.
+    var onEvent: @MainActor (GestureEvent) -> Void
 
     init(gestures: GestureState,
          isEnabled: Bool = true,
-         onEvent: @escaping (GestureEvent) -> Void) {
+         onEvent: @escaping @MainActor (GestureEvent) -> Void) {
         self.gestures = gestures
         self.isEnabled = isEnabled
         self.onEvent = onEvent
@@ -243,17 +246,25 @@ struct TrackpadSurface: UIViewRepresentable {
     final class Coordinator: TouchCaptureHandling {
 
         var gestures: GestureState
-        var onEvent: (GestureEvent) -> Void
+        var onEvent: @MainActor (GestureEvent) -> Void
 
-        init(gestures: GestureState, onEvent: @escaping (GestureEvent) -> Void) {
+        init(gestures: GestureState, onEvent: @escaping @MainActor (GestureEvent) -> Void) {
             self.gestures = gestures
             self.onEvent = onEvent
         }
 
         /// Point the state machine's output at us. Safe to call repeatedly.
+        ///
+        /// `GestureState` is deliberately UIKit-free and therefore carries no
+        /// actor annotation, but every call into it originates from a UIKit
+        /// touch callback, so its output is already on the main actor. The
+        /// assumption is stated rather than hopped, because hopping would
+        /// reorder reports relative to the touches that produced them.
         func connect() {
             gestures.onEvent = { [weak self] event in
-                self?.onEvent(event)
+                MainActor.assumeIsolated {
+                    self?.onEvent(event)
+                }
             }
         }
 

@@ -10,6 +10,7 @@
 
 import SwiftUI
 
+@MainActor
 public struct RootView: View {
 
     private let runtime: AppRuntime
@@ -24,20 +25,23 @@ public struct RootView: View {
     }
 
     public var body: some View {
-        ZStack(alignment: .top) {
-            Theme.pageBackground
-                .ignoresSafeArea()
+        VStack(spacing: 0) {
+            // A strip rather than an overlay: `TrackpadView` puts its menu
+            // button in the top-left corner, and floating a banner over it
+            // would make the only route into settings untappable.
+            if hasStatusToShow {
+                statusStrip
+            }
 
             TrackpadView(
                 sender: runtime.sender,
                 settings: runtime.settings,
-                onOpenSettings: {
+                onOpenMenu: {
                     settingsPresentation = SettingsPresentation(tab: .connection, opensDiagnostics: false)
                 }
             )
-
-            overlays
         }
+        .background(Theme.pageBackground.ignoresSafeArea())
         .tint(Theme.accent)
         .sheet(item: $settingsPresentation) { presentation in
             SettingsSheet(
@@ -48,12 +52,15 @@ public struct RootView: View {
         }
     }
 
-    // MARK: Overlays
+    // MARK: Status strip
+
+    private var hasStatusToShow: Bool {
+        runtime.isRadioStubbed || runtime.lastStartError != nil
+    }
 
     /// Status that must be visible without opening settings: the Simulator
     /// substitution, and a radio that refused to publish.
-    @ViewBuilder
-    private var overlays: some View {
+    private var statusStrip: some View {
         VStack(spacing: 10) {
             if runtime.isRadioStubbed {
                 StubbedRadioBadge()
@@ -62,10 +69,10 @@ public struct RootView: View {
                 startFailureBanner(error)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .center)
         .padding(.horizontal, 16)
         .padding(.top, 8)
-        .frame(maxWidth: .infinity, alignment: .center)
-        .allowsHitTesting(runtime.lastStartError != nil)
+        .padding(.bottom, 10)
     }
 
     private func startFailureBanner(_ message: String) -> some View {

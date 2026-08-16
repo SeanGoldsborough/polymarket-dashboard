@@ -18,6 +18,7 @@ import SwiftUI
 import UIKit
 #endif
 
+@MainActor
 public struct RemoteDetailView: View {
     private let remote: Remote
     private let sender: any HIDSending
@@ -169,6 +170,7 @@ extension RemoteButton {
 /// swallowed or fires twice. Driving everything from
 /// `onLongPressGesture(onPressingChanged:)` gives one source of truth for the
 /// press: down fires once, hold repeats, release and cancellation both stop it.
+@MainActor
 private struct RemoteButtonView: View {
     let button: RemoteButton
     let isEnabled: Bool

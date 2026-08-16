@@ -31,6 +31,10 @@
 //
 
 import Foundation
+// `@Observable` and `@ObservationIgnored` live in the Observation module, which
+// Foundation does not re-export. Imported explicitly so this file does not
+// depend on SwiftUI being pulled in by something else in the target.
+import Observation
 
 #if canImport(UIKit)
 import UIKit
@@ -86,7 +90,7 @@ public final class HIDDiagnostics {
     /// The fields are deliberately flat and additive rather than a single
     /// enum: a probe can be partially successful (published but never
     /// subscribed) and the bug report needs to say exactly how far it got.
-    public struct ProbeResult: Identifiable, Equatable {
+    public struct ProbeResult: Identifiable, Equatable, Sendable {
         public let topology: ReportTopology
 
         /// True once `start(topology:)` returned without throwing — i.e. iOS
@@ -135,7 +139,7 @@ public final class HIDDiagnostics {
     }
 
     /// Presentation state for one row of the diagnostics list.
-    public enum ProbeState: Equatable {
+    public enum ProbeState: Equatable, Sendable {
         /// Not yet attempted in this run.
         case pending
         /// Currently publishing / advertising / waiting.
@@ -251,7 +255,8 @@ public final class HIDDiagnostics {
     public func start() {
         guard !isRunning else { return }
         runTask = Task { [weak self] in
-            await self?.runAll()
+            guard let self else { return }
+            await self.runAll()
         }
     }
 

@@ -192,13 +192,17 @@ public struct PrimaryCapsuleButton: ButtonStyle {
     }
 
     public func makeBody(configuration: Configuration) -> some View {
-        Body(configuration: configuration, fillsWidth: fillsWidth)
+        CapsuleLabel(configuration: configuration, fillsWidth: fillsWidth)
     }
 
     /// A nested view is required because `ButtonStyle.makeBody` cannot read the
     /// environment directly, and the disabled appearance must respond to
     /// `.disabled(_:)` applied by the caller.
-    private struct Body: View {
+    ///
+    /// Deliberately *not* named `Body`: that is `ButtonStyle`'s associated type,
+    /// and a nested type with that name would be picked up by associated-type
+    /// inference and collide with the opaque result type of `makeBody`.
+    private struct CapsuleLabel: View {
         let configuration: Configuration
         let fillsWidth: Bool
         @Environment(\.isEnabled) private var isEnabled

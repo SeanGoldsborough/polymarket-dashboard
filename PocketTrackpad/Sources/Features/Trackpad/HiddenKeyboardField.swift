@@ -97,6 +97,7 @@ public final class KeyboardBridge {
     @ObservationIgnored private var heldHardwareKeys: [UInt8] = []
 
     @ObservationIgnored private var typingTask: Task<Void, Never>?
+    @ObservationIgnored private var typingGeneration = 0
 
     /// Gap between synthesised keystrokes during a paste. A BLE connection
     /// interval is 7.5–30 ms; firing faster than that just queues reports up
@@ -222,9 +223,16 @@ public final class KeyboardBridge {
         let carried = activeModifiers
         consumeOneShots()
 
+        // A cancelled paste finishes asynchronously, so tag this run and let
+        // only the newest one clear the progress it owns.
+        typingGeneration &+= 1
+        let generation = typingGeneration
+
         pasteProgress = 0
-        typingTask = Task { @MainActor [weak self] in
-            defer { self?.pasteProgress = nil }
+        typingTask = Task { [weak self] in
+            defer {
+                if let self, self.typingGeneration == generation { self.pasteProgress = nil }
+            }
             for (index, stroke) in strokes.enumerated() {
                 guard let self, !Task.isCancelled, self.isConnected else { return }
                 self.sender.tap(key: stroke.0, modifiers: stroke.1.union(carried))
@@ -286,22 +294,26 @@ final class HIDKeyCaptureField: UITextField {
 
     /// THE SENTINEL TRICK.
     ///
-    /// `deleteBackward()` is only delivered to a responder that reports having
-    /// something to delete. An empty field means UIKit still calls it in most
-    /// iOS versions, but the *keyboard* renders the delete key as a no-op and,
-    /// worse, some input modes stop sending the message entirely once the
-    /// buffer is empty. The standard workaround — used by every "capture the
-    /// keyboard" implementation — is to keep exactly one throwaway character
-    /// in the buffer (a single space here) and override `hasText` to always
-    /// report true. The user never sees it: `insertText` and `deleteBackward`
-    /// are both overridden so `super` never runs and the buffer never changes
-    /// from the sentinel, and the caret and selection rects are suppressed.
+    /// `deleteBackward()` is only reliably delivered to a responder that has
+    /// something to delete — `hasText` has to be true. A field the user has not
+    /// typed into yet is empty, so backspace becomes a no-op and the Mac never
+    /// sees the delete the user pressed. The standard workaround, used by every
+    /// "capture the keyboard" implementation, is to keep exactly one throwaway
+    /// character in the buffer — a single space here — so `hasText` is
+    /// genuinely true from the first frame.
+    ///
+    /// The user never sees or loses it: `insertText` and `deleteBackward` are
+    /// both overridden and never call `super`, so the buffer never moves off
+    /// the sentinel, and the field itself is one point across with clear text
+    /// and a clear tint (hence no caret).
     static let sentinel = " "
 
-    var onInsert: ((String) -> Void)?
-    var onDeleteBackward: (() -> Void)?
-    var onHardwareKeyDown: ((UInt8, KeyModifiers) -> Void)?
-    var onHardwareKeyUp: ((UInt8, KeyModifiers) -> Void)?
+    // All main-actor isolated: every one of these is raised from a UIKit
+    // callback and lands on `HIDSending`, which is `@MainActor`.
+    var onInsert: (@MainActor (String) -> Void)?
+    var onDeleteBackward: (@MainActor () -> Void)?
+    var onHardwareKeyDown: (@MainActor (UInt8, KeyModifiers) -> Void)?
+    var onHardwareKeyUp: (@MainActor (UInt8, KeyModifiers) -> Void)?
 
     private var isRestoringSentinel = false
 
@@ -347,8 +359,6 @@ final class HIDKeyCaptureField: UITextField {
 
     // MARK: UIKeyInput
 
-    override var hasText: Bool { true }
-
     override func insertText(_ text: String) {
         // Deliberately no `super.insertText` — the buffer stays at the
         // sentinel forever, which is what keeps delete working.
@@ -363,10 +373,8 @@ final class HIDKeyCaptureField: UITextField {
 
     // MARK: Cosmetics
 
-    override func caretRect(for position: UITextPosition) -> CGRect { .zero }
-
-    override func selectionRects(for range: UITextRange) -> [UITextSelectionRect] { [] }
-
+    /// No cut/copy/paste/select menu — every one of those would rewrite the
+    /// sentinel buffer, and none of them mean anything for a write-only field.
     override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool { false }
 
     /// Flipping secure entry while first responder makes UIKit clear the field,
@@ -435,7 +443,7 @@ final class HIDKeyCaptureField: UITextField {
     /// function row, and any chord holding command or control — is sent here
     /// as a real key-down/key-up pair.
     private func forward(_ presses: Set<UIPress>,
-                         to sink: (UInt8, KeyModifiers) -> Void) -> Set<UIPress> {
+                         to sink: @MainActor (UInt8, KeyModifiers) -> Void) -> Set<UIPress> {
         var unhandled: Set<UIPress> = []
         for press in presses {
             guard let key = press.key,
@@ -512,7 +520,7 @@ struct HiddenKeyboardField: UIViewRepresentable {
         // responder synchronously posts keyboard notifications, which SwiftUI
         // turns into safe-area changes, i.e. state mutation mid-update.
         let shouldBeActive = isActive
-        DispatchQueue.main.async {
+        Task { @MainActor in
             guard uiView.window != nil else { return }
             if shouldBeActive, !uiView.isFirstResponder {
                 uiView.becomeFirstResponder()
@@ -580,10 +588,9 @@ struct HiddenKeyboardField: UIViewRepresentable {
             if isActive.wrappedValue { isActive.wrappedValue = false }
         }
 
-        func textFieldShouldReturn(_ textField: UITextField) -> Bool {
-            bridge.send(usage: TrackpadKeyUsage.returnOrEnter)
-            return false
-        }
+        // Note: no `textFieldShouldReturn`. The return key reaches us as
+        // `insertText("\n")`, which the field's override already turns into a
+        // return usage; implementing the delegate method too would send it twice.
     }
 }
 
