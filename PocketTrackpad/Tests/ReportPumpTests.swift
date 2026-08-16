@@ -87,21 +87,17 @@ private final class FakeTransport: ReportPumpTransport {
 @MainActor
 final class ReportPumpTests: XCTestCase {
 
-    private var transport: FakeTransport!
-    private var pump: ReportPump!
-
-    override func setUp() {
-        super.setUp()
-        transport = FakeTransport()
-        pump = ReportPump(transport: transport, topology: .perReportCharacteristic)
-    }
-
-    override func tearDown() {
-        pump.stop()
-        pump = nil
-        transport = nil
-        super.tearDown()
-    }
+    // XCTest instantiates the test class once per test method, so these property
+    // initialisers give every test a fresh, isolated fixture.
+    //
+    // `setUp()`/`tearDown()` are deliberately NOT overridden: XCTestCase declares
+    // them without actor isolation, and overriding them from a `@MainActor` class
+    // changes the isolation of an inherited declaration, which the compiler
+    // rejects. Property initialisers sidestep that entirely. Nothing needs tearing
+    // down either — no test starts the flush timer, which is what makes them
+    // deterministic on a loaded CI machine.
+    private let transport = FakeTransport()
+    private lazy var pump = ReportPump(transport: transport, topology: .perReportCharacteristic)
 
     // MARK: - Mouse coalescing
 

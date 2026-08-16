@@ -235,7 +235,9 @@ public final class ReportPump {
     /// press gesture, which is precisely when reports are being produced.
     public func start() {
         guard timer == nil else { return }
-        let timer = Timer(timeInterval: flushInterval, repeats: true) { [weak self] _ in
+        // Named `flushTimer`, not `timer`: a local called `timer` would make the
+        // `guard timer == nil` above a use-before-declaration error.
+        let flushTimer = Timer(timeInterval: flushInterval, repeats: true) { [weak self] _ in
             // The timer is scheduled on the main run loop, so its callback runs on
             // the main thread; `assumeIsolated` states that contract explicitly and
             // traps loudly if it ever stops holding, rather than silently racing.
@@ -243,9 +245,9 @@ public final class ReportPump {
                 self?.flush()
             }
         }
-        timer.tolerance = flushInterval * 0.2
-        RunLoop.main.add(timer, forMode: .common)
-        self.timer = timer
+        flushTimer.tolerance = flushInterval * 0.2
+        RunLoop.main.add(flushTimer, forMode: .common)
+        timer = flushTimer
     }
 
     /// Stop flushing and release the timer. Queued reports are kept: `stop()` is
