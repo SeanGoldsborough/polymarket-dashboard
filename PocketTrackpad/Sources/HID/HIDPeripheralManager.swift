@@ -338,9 +338,11 @@ public final class HIDPeripheralManager: NSObject, HIDPeripheralControlling {
             // data byte and see garbage. Cheap to try, and some hosts cope.
             let characteristic = makeReportCharacteristic(uuid: HIDUUID.report)
             singleReportCharacteristic = characteristic
-            for reportID in topology.supportedReports {
-                reportIDsByCharacteristic[ObjectIdentifier(characteristic)] = reportID
-            }
+            // One characteristic, three report IDs, so the reverse map cannot be
+            // one-to-one. It is registered under `.mouse` purely so
+            // `reportID(for:)` returns non-nil; `didSubscribeTo` special-cases this
+            // topology and marks all three reports subscribed at once.
+            reportIDsByCharacteristic[ObjectIdentifier(characteristic)] = .mouse
             characteristics.append(characteristic)
 
         case .bootProtocolOnly:
