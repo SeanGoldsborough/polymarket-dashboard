@@ -9,3 +9,6 @@ DerivedData/
 build/
 *.xcuserstate
 .DS_Store
+
+# SwiftPM build products
+.build/
